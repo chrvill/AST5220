@@ -31,7 +31,14 @@ int main(int argc, char **argv){
 
   std::cout << "Age of the universe: " << age << " Gyr\n";
 
-  std::cout << "d_A = " << cosmo.d_L(x)/(3.08567758e22) << "\n";
+  Vector x_array = Utils::linspace(-1, 0, 100);
+  std::ofstream d_L{"lum_dist.txt"};
+
+  for (int i = 0; i < x_array.size(); ++i)
+  {
+    d_L << x_array[i] << "\t" << cosmo.d_L(x_array[i]) << "\n";
+  }
+
 
   // Output background evolution quantities
   cosmo.output("cosmology.txt");

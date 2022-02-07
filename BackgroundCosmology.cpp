@@ -40,7 +40,7 @@ void BackgroundCosmology::solve(){
   // TODO: Set the range of x and the number of points for the splines
   // For this Utils::linspace(x_start, x_end, npts) is useful
   //=============================================================================
-  Vector x_array = Utils::linspace(x_start, x_end, 1000);
+  Vector x_array = Utils::linspace(x_start, x_end, 10000);
 
   // The ODE for deta/dx
   ODEFunction detadx = [&](double x, const double *eta, double *detadx){
@@ -229,6 +229,10 @@ double BackgroundCosmology::eta_of_x(double x) const{
   return eta_of_x_spline(x);
 }
 
+double BackgroundCosmology::t_of_x(double x) const{
+  return t_of_x_spline(x);
+}
+
 double BackgroundCosmology::get_H0() const{
   return H0;
 }
@@ -281,7 +285,7 @@ void BackgroundCosmology::set_xlims(double x_min, double x_max){
 void BackgroundCosmology::output(const std::string filename) const{
   const double x_min = -20.0;
   const double x_max =  5.0;
-  const int    n_pts =  100;
+  const int    n_pts =  10000;
 
   Vector x_array = Utils::linspace(x_min, x_max, n_pts);
 
@@ -290,7 +294,9 @@ void BackgroundCosmology::output(const std::string filename) const{
     fp << x                  << " ";
     fp << eta_of_x(x)        << " ";
     fp << Hp_of_x(x)         << " ";
+    fp << t_of_x(x)          << " ";
     fp << dHpdx_of_x(x)      << " ";
+    fp << ddHpddx_of_x(x)    << " ";
     fp << get_OmegaB(x)      << " ";
     fp << get_OmegaCDM(x)    << " ";
     fp << get_OmegaLambda(x) << " ";
