@@ -162,10 +162,15 @@ double BackgroundCosmology::ddHddx_of_x(double x) const{
   double Omega_m = OmegaB + OmegaCDM; // Density parameter of non-rel. species
   double Omega_r = OmegaR + OmegaNu; // Density parameter of relativistic species
 
-  double ddHdda = 1.0/2.0*H0*H0*((12*Omega_m*std::pow(a, -5) + 20*Omega_r*std::pow(a, -6))/H_of_x(x) +
-                                 (3*Omega_m*std::pow(a, -4) + 4*Omega_r*std::pow(a, -5)*1.0/a*dHdx_of_x(x)));
+  double Omega = Omega_m*std::pow(a, -3) + Omega_r*std::pow(a, -4) + OmegaLambda;
+  double dOmegada = -3*Omega_m*std::pow(a, -4) - 4*Omega_r*std::pow(a, -5);
+  double ddOmegadda = 12*Omega_m*std::pow(a, -5) + 20*Omega_r*std::pow(a, -6);
 
-  return dHdx_of_x(x) + a*a*ddHdda;
+  double dOmegadx = a*dOmegada;
+  double ddOmegaddx = a*dOmegada + a*a*ddOmegadda;
+
+  return H0*(-1.0/(4*std::pow(Omega, 3.0/2.0))*dOmegadx*dOmegadx + 1.0/(2*std::sqrt(Omega))*ddOmegaddx);
+
 }
 
 double BackgroundCosmology::dHpdx_of_x(double x) const{
@@ -189,6 +194,17 @@ double BackgroundCosmology::ddHpddx_of_x(double x) const{
   double a = std::exp(x);
 
   return dHpdx_of_x(x) + a*dHdx_of_x(x) + a*ddHddx_of_x(x);
+
+  /*
+  //return dHpdx_of_x(x) + a*dHdx_of_x(x) + a*ddHddx_of_x(x);
+  double Omega = Omega_m*std::pow(a, -3) + Omega_r*std::pow(a, -4) + OmegaLambda;
+  double dOmegada = -3*Omega_m*std::pow(a, -4) - 4*Omega_r*std::pow(a, -5);
+  double ddOmegadda = 12*Omega_m*std::pow(a, -5) + 20*Omega_r*std::pow(a, -6);
+
+  return a*H0*(std::sqrt(Omega) + 3.0/2.0*a/std::sqrt(Omega)*dOmegada \
+              - 1.0/4.0*a*a/std::pow(Omega, 3.0/2.0)*dOmegada*dOmegada + a*a/(2.0*std::sqrt(Omega))*ddOmegadda);
+  */
+
 }
 
 double BackgroundCosmology::get_OmegaB(double x) const{
