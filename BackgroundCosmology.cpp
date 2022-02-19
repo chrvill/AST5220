@@ -28,18 +28,11 @@ BackgroundCosmology::BackgroundCosmology(
 
 }
 
-//====================================================
-// Do all the solving. Compute eta(x)
-//====================================================
-
 // Solve the background
 void BackgroundCosmology::solve(){
   Utils::StartTiming("Eta and t");
 
-  //=============================================================================
-  // TODO: Set the range of x and the number of points for the splines
-  // For this Utils::linspace(x_start, x_end, npts) is useful
-  //=============================================================================
+  // The x-values that will be used when solving the ODEs
   Vector x_array = Utils::linspace(x_start, x_end, 10000);
 
   // The ODE for deta/dx
@@ -56,24 +49,24 @@ void BackgroundCosmology::solve(){
     return GSL_SUCCESS;
   };
 
-  // Initial value of eta
+  // Initial value of eta (analytical expr. in rad. dom.)
   Vector eta_init{Constants.c/(Hp_of_x(x_start))};
 
   // Defining ODESolver and solving for eta
   ODESolver ode_eta;
 
+  // Solving ODE and storing result in eta_array
   ode_eta.solve(detadx, x_array, eta_init);
-
   auto eta_array = ode_eta.get_data_by_component(0);
 
+  // Creating the spline that interpolates between the x-values used here
   eta_of_x_spline.create(x_array, eta_array, "eta_of_x");
 
-  // Defining ODESolver and solving for t
+  // The following is the exact same, just for dt/dx
   Vector t_init{1.0/(2.0*H_of_x(x_start))};
   ODESolver ode_t;
 
   ode_t.solve(dtdx, x_array, t_init);
-
   auto t_array = ode_t.get_data_by_component(0);
 
   t_of_x_spline.create(x_array, t_array, "t_of_x");
@@ -82,14 +75,19 @@ void BackgroundCosmology::solve(){
 }
 
 double BackgroundCosmology::comoving_distance(double x) const{
+  // The analytical expression for the comoving distance, chi.
   return eta_of_x_spline(0) - eta_of_x_spline(x);
 }
 
 double BackgroundCosmology::r_coordinate(double x) const{
+  // Computing the radial comoving coordinate for a given x
+
   double chi = comoving_distance(x);
 
+  // Argument inside the sin and sinh
   double argument = std::sqrt(std::abs(OmegaK))*H0*chi/Constants.c;
 
+  // Returning the appropriate expressions for the different curvatures
   if (OmegaK < 0)
   {
     return chi*std::sin(argument)/argument;
@@ -107,12 +105,14 @@ double BackgroundCosmology::r_coordinate(double x) const{
 }
 
 double BackgroundCosmology::d_A(double x) const{
+  // Computes the angular diameter distance for a given x
   double a = std::exp(x);
 
   return a*r_coordinate(x);
 }
 
 double BackgroundCosmology::d_L(double x) const{
+  // Computes the luminosity distance for a given x
   double a = std::exp(x);
 
   return r_coordinate(x)/a;
@@ -123,10 +123,6 @@ double BackgroundCosmology::d_L(double x) const{
 //====================================================
 
 double BackgroundCosmology::H_of_x(double x) const{
-
-  //=============================================================================
-  // TODO: Implement...
-  //=============================================================================
   double a = std::exp(x);
 
   return H0*std::sqrt((OmegaB + OmegaCDM)*std::pow(a, -3) + (OmegaR + OmegaNu)*std::pow(a, -4)
@@ -134,12 +130,9 @@ double BackgroundCosmology::H_of_x(double x) const{
 }
 
 double BackgroundCosmology::Hp_of_x(double x) const{
-
-  //=============================================================================
-  // TODO: Implement...
-  //=============================================================================
   double a = std::exp(x);
 
+  // Def. of Hp
   return a*H_of_x(x);
 }
 
@@ -159,13 +152,15 @@ double BackgroundCosmology::dHdx_of_x(double x) const{
 double BackgroundCosmology::ddHddx_of_x(double x) const{
   double a = std::exp(x);
 
-  double Omega_m = OmegaB + OmegaCDM; // Density parameter of non-rel. species
-  double Omega_r = OmegaR + OmegaNu; // Density parameter of relativistic species
+  double Omega_m = OmegaB + OmegaCDM; // Density parameter of non-rel. species today
+  double Omega_r = OmegaR + OmegaNu; // Density parameter of relativistic species today
 
+  // Here H = H_0 sqrt(Omega). The following lines define Omega and its first two derivatives wrt. a
   double Omega = Omega_m*std::pow(a, -3) + Omega_r*std::pow(a, -4) + OmegaLambda;
   double dOmegada = -3*Omega_m*std::pow(a, -4) - 4*Omega_r*std::pow(a, -5);
   double ddOmegadda = 12*Omega_m*std::pow(a, -5) + 20*Omega_r*std::pow(a, -6);
 
+  // The first two derivatives of Omega wrt. x
   double dOmegadx = a*dOmegada;
   double ddOmegaddx = a*dOmegada + a*a*ddOmegadda;
 
@@ -174,38 +169,22 @@ double BackgroundCosmology::ddHddx_of_x(double x) const{
 }
 
 double BackgroundCosmology::dHpdx_of_x(double x) const{
-
-  //=============================================================================
-  // TODO: Implement...
-  //=============================================================================
   double a = std::exp(x);
-  //double Omega_m = OmegaB + OmegaCDM; // Density parameter of non-rel. species
-  //double Omega_r = OmegaR + OmegaNu; // Density parameter of relativistic species
 
-  //return Hp_of_x(x) - 1.0/2.0*H0*H0/H_of_x(x)*(3*Omega_m*std::pow(a, -2) + 4*Omega_r*std::pow(a, -3));
+  // Expression derived in appendix
   return Hp_of_x(x) + a*dHdx_of_x(x);
 }
 
 double BackgroundCosmology::ddHpddx_of_x(double x) const{
-
-  //=============================================================================
-  // TODO: Implement...
-  //=============================================================================
   double a = std::exp(x);
 
+  // Expression derived in appendix
   return dHpdx_of_x(x) + a*dHdx_of_x(x) + a*ddHddx_of_x(x);
-
-  /*
-  //return dHpdx_of_x(x) + a*dHdx_of_x(x) + a*ddHddx_of_x(x);
-  double Omega = Omega_m*std::pow(a, -3) + Omega_r*std::pow(a, -4) + OmegaLambda;
-  double dOmegada = -3*Omega_m*std::pow(a, -4) - 4*Omega_r*std::pow(a, -5);
-  double ddOmegadda = 12*Omega_m*std::pow(a, -5) + 20*Omega_r*std::pow(a, -6);
-
-  return a*H0*(std::sqrt(Omega) + 3.0/2.0*a/std::sqrt(Omega)*dOmegada \
-              - 1.0/4.0*a*a/std::pow(Omega, 3.0/2.0)*dOmegada*dOmegada + a*a/(2.0*std::sqrt(Omega))*ddOmegadda);
-  */
-
 }
+
+/*
+Methods for returning the different density parameters and eta, t, etc. for some given x
+*/
 
 double BackgroundCosmology::get_OmegaB(double x) const{
   double a = std::exp(x);
@@ -239,6 +218,14 @@ double BackgroundCosmology::get_OmegaK(double x) const{
   double a = std::exp(a);
 
   return OmegaK*std::pow(a, -2)*H0*H0/std::pow(H_of_x(x), 2);
+}
+
+double BackgroundCosmology::get_OmegaM(double x) const{
+  return get_OmegaB(x) + get_OmegaCDM(x);
+}
+
+double BackgroundCosmology::get_OmegaRtot(double x) const{
+  return get_OmegaR(x) + get_OmegaNu(x);
 }
 
 double BackgroundCosmology::eta_of_x(double x) const{

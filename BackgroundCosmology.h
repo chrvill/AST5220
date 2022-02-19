@@ -69,10 +69,12 @@ class BackgroundCosmology{
     // Returns the age of the universe for a particular x given as input
     double age_of_universe(double x) const;
 
-    // Output some results to file
+    // Output some results to file (eta(x), H(x), Hp(x), etc.)
     void output(const std::string filename) const;
 
-    // Get functions that we must implement
+    // Get functions returning the value implied by the function name (eta_of_x -> eta(x) etc.)
+    // All the functions take in some x and return the value of the quantity at that x
+    // The expressions used in the derivative functions are derived in the appendices of the report
     double eta_of_x(double x) const;
     double t_of_x(double x) const;
     double H_of_x(double x) const;
