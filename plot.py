@@ -25,7 +25,8 @@ class BackgroundCosmology:
         # Redshift of matter-rad. eq., matter-lambda eq., and beinning of accelerated expansion
         self.z_m_r_eq = self.Omega_m[self.today_index]/self.Omega_r[self.today_index] - 1
         self.z_m_lambda_eq = (self.OmegaLambda[self.today_index]/self.Omega_m[self.today_index])**(1/3) - 1
-        self.z_acc_begin = 1/(self.Omega_m[self.today_index]/(2*self.OmegaLambda[self.today_index]))**(1/3) - 1
+        #self.z_acc_begin = 1/(self.Omega_m[self.today_index]/(2*self.OmegaLambda[self.today_index]))**(1/3) - 1
+        self.z_acc_begin = (2*self.OmegaLambda[self.today_index]/self.Omega_m[self.today_index])**(1/3) - 1
 
         # The x-values of the same three points in time as above
         self.x_m_r_eq = -np.log(1 + self.z_m_r_eq)
