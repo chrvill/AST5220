@@ -187,6 +187,8 @@ fig, ax = plt.subplots()
 
 ax.plot(z, d_L/(1e3*Mpc), "b-", label = r"Computed $d_L(z)$")
 ax.errorbar(z_obs, d_L_obs, error, fmt = "o", label = r"Observed $d_L(z)$", color = "r", capsize = 5, markersize = 5)
+ax.set_xscale("log")
+ax.set_yscale("log")
 
 ax.set_xlabel(r"$z$", fontsize = fontsize)
 ax.set_ylabel(r"$d_L$ (Gpc)", fontsize = fontsize)

@@ -32,7 +32,7 @@ int main(int argc, char **argv){
 
   // Defining x-array that is used when computing luminosity distances
   // that are compared with observed lum. distances
-  Vector x_array = Utils::linspace(-1, 0, 100);
+  Vector x_array = Utils::linspace(-0.85, 0, 100);
   std::ofstream d_L{"lum_dist.txt"};
 
   // Writing x and lum. distance to file for each value of x
