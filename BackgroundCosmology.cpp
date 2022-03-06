@@ -26,6 +26,9 @@ BackgroundCosmology::BackgroundCosmology(
   OmegaNu = Neff*7.0/8.0*std::pow((4.0/11.0), 4.0/3.0)*OmegaR;
   OmegaLambda = 1 - (OmegaK + OmegaB + OmegaCDM + OmegaR + OmegaNu);
 
+  // The critial density of the universe today
+  const double rho_crit_0 = 3*H0*H0/(8*M_PI*G);
+
 }
 
 // Solve the background
@@ -251,6 +254,10 @@ double BackgroundCosmology::get_Neff() const{
 double BackgroundCosmology::get_TCMB(double x) const{
   if(x == 0.0) return TCMB;
   return TCMB * exp(-x);
+}
+
+double BackgroundCosmology::get_n_b(double x) const{
+  return (1 - Y_p)*OmegaB*rho_crit_0/(Constants.m_H*a*a*a);
 }
 
 //====================================================

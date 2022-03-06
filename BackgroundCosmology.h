@@ -96,6 +96,7 @@ class BackgroundCosmology{
     double get_h() const;
     double get_Neff() const;
     double get_TCMB(double x = 0.0) const;
+    double get_n_b(double x) const;
 };
 
 #endif
