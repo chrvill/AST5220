@@ -257,7 +257,7 @@ double BackgroundCosmology::get_TCMB(double x) const{
 }
 
 double BackgroundCosmology::get_n_b(double x) const{
-  return (1 - Y_p)*OmegaB*rho_crit_0/(Constants.m_H*a*a*a);
+  return OmegaB*rho_crit_0/(Constants.m_H*a*a*a);
 }
 
 //====================================================
