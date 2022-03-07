@@ -47,7 +47,7 @@ void RecombinationHistory::solve_number_density_electrons(){
     // TODO: Get X_e from solving the Saha equation so
     // implement the function electron_fraction_from_saha_equation
     //==============================================================
-    auto Xe_ne_data = electron_fraction_from_saha_equation(x_array[i]);
+    auto Xe_ne_data = electron_fraction_from_saha_equation_with_He(x_array[i]);
 
     // Electron fraction and number density
     const double Xe_current = Xe_ne_data.first;
@@ -168,6 +168,57 @@ std::pair<double,double> RecombinationHistory::electron_fraction_from_saha_equat
   return std::pair<double,double>(Xe, ne);
 }
 
+std::pair<double,double> RecombinationHistory::electron_fraction_from_saha_equation_with_He(double x) const{
+  const double a           = exp(x);
+
+  // Physical constants
+  const double k_b         = Constants.k_b;
+  const double G           = Constants.G;
+  const double m_e         = Constants.m_e;
+  const double hbar        = Constants.hbar;
+  const double m_H         = Constants.m_H;
+  const double epsilon_0   = Constants.epsilon_0;
+  const double H0_over_h   = Constants.H0_over_h;
+  const double xhi0        = Constants.xhi0;
+  const double xhi1        = Constants.xhi1;
+
+  // Fetch cosmological parameters
+  //const double OmegaB = cosmo->get_OmegaB(0);
+  const double T_b  = cosmo->get_TCMB(x);
+  const double n_b  = cosmo->get_n_b(x);
+
+  // Electron fraction and number density
+  double Xe = 0.0;
+  double ne = 0.0;
+
+  const double parenthesis_factor = std::pow(m_e*k_b*T_b/(2*M_PI*hbar*hbar), 3.0/2.0);
+
+  const double C_1 = 2*parenthesis_factor*std::exp(-xhi0/(k_b*T_b));
+  const double C_2 = 4*parenthesis_factor*std::exp(-xhi1/(k_b*T_b));
+  const double C_3 = parenthesis_factor*std::exp(-epsilon_0/(k_b*T_b));
+
+  // Initial guess for f_e for every value of x when using the Saha eq.
+  double f_e = 0.999;
+  // Initializing variable that will contain the old guess for f_e
+  double f_e_old = 0;
+
+  while (std::abs(f_e - f_e_old) > 1e-10)
+  {
+    ne = f_e*n_b;
+
+    double x_H_plus = C_3/(ne + C_3);
+    double x_He_plus = C_1/(ne + C_1 + C_1*C_2/ne);
+    double x_He_pplus = C_2/ne*x_He_plus;
+
+    f_e = (2*x_He_pplus + x_He_plus)*Yp/4.0 + x_H_plus*(1 - Yp);
+    f_e_old = f_e;
+  }
+
+  Xe = f_e/(1 - Yp);
+
+  return std::pair<double,double>(Xe, ne);
+}
+
 //====================================================
 // The right hand side of the dXedx Peebles ODE
 //====================================================
@@ -259,10 +310,12 @@ void RecombinationHistory::solve_for_optical_depth_tau(){
   std::reverse(x_array.begin(), x_array.end());
   std::reverse(tau_array.begin(), tau_array.end());
 
+  /*
   for (int i = 0; i < npts; ++i)
   {
     std::cout << tau_array[i] << "\t" << x_array[i] << "\n";
   }
+  */
 
 
   tau_of_x_spline.create(x_array, tau_array, "tau");
