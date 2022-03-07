@@ -8,60 +8,22 @@ c = 3e8 # Speed of light in m/s
 # Fontsize in the plots
 fontsize = 15
 
-class BackgroundCosmology:
-    def __init__(self, data_file):
-        self.data = np.loadtxt(data_file)
-        self.x, self.eta, self.Hp, self.t, self.dHpdx, self.ddHpddx = np.transpose(self.data[:, :6])
+def x_to_z(x):
+    """" Returns the redshift corresponding to a given x """
+    return np.exp(-x) - 1
 
-        # Reading in all the density parameters from the data-file
-        self.OmegaB, self.OmegaCDM, self.OmegaLambda, self.OmegaR, self.OmegaNu, self.OmegaK = np.transpose(self.data[:, 6:])
+def z_to_x(z):
+    """ Returns the value of x corresponding to a given redshift z """
+    return -np.log(1 + z)
 
-        self.Omega_m = self.OmegaB + self.OmegaCDM
-        self.Omega_r = self.OmegaR + self.OmegaNu
+class Plotter:
+    """
+    A plotter class which the other classes can inherit from. It only takes an array of x-values as input.
+    The plotting of quantities as functions of x is then handled by this class.
+    """
 
-        # Index corresponding to today, so self.t[today_index] gives the age of the universe today etc.
-        self.today_index = np.argmin(np.abs(self.x))
-
-        # Redshift of matter-rad. eq., matter-lambda eq., and beinning of accelerated expansion
-        self.z_m_r_eq = self.Omega_m[self.today_index]/self.Omega_r[self.today_index] - 1
-        self.z_m_lambda_eq = (self.OmegaLambda[self.today_index]/self.Omega_m[self.today_index])**(1/3) - 1
-        #self.z_acc_begin = 1/(self.Omega_m[self.today_index]/(2*self.OmegaLambda[self.today_index]))**(1/3) - 1
-        self.z_acc_begin = (2*self.OmegaLambda[self.today_index]/self.Omega_m[self.today_index])**(1/3) - 1
-
-        # The x-values of the same three points in time as above
-        self.x_m_r_eq = -np.log(1 + self.z_m_r_eq)
-        self.x_m_lambda_eq = -np.log(1 + self.z_m_lambda_eq)
-        self.x_acc_begin = -np.log(1 + self.z_acc_begin)
-
-        # Indices for when the three aforementioned points in time occur
-        m_eq_index = np.argmin(np.abs(self.x - self.x_m_r_eq))
-        m_lambda_index = np.argmin(np.abs(self.x - self.x_m_lambda_eq))
-        acc_begin_index = np.argmin(np.abs(self.x - self.x_acc_begin))
-
-        # Times at which the aforementioned points in time occur
-        self.t_m_r_eq = self.t[m_eq_index]/Gyr
-        self.t_m_lambda_eq = self.t[m_lambda_index]/Gyr
-        self.t_acc_begin = self.t[acc_begin_index]/Gyr
-
-    def printInfo(self):
-        """
-        Prints the z-, x- and t-values corresponding to matter-rad. eq.,
-        matter-lambda eq. and beginning of accelerated expansion.
-        """
-
-        print("Age of universe: {:.2f}".format(self.t[self.today_index]/Gyr))
-        print("Eta today: {:.2f}".format(self.eta[self.today_index]/(c*Gyr)))
-
-        print("\t\t |\t z \t\t | \t\t x \t\t|  t (Gyr)")
-        print("-----------------|-----------------------|------------------------------|-----------------")
-        print("Matter-rad. eq.  |      {:^.0f} \t\t |             {:^.3f} \t\t| {:^.3e}".format(self.z_m_r_eq, self.x_m_r_eq,
-                                                                                                self.t_m_r_eq))
-        print("Matter-Lambda eq |      {:^.2f} \t\t |             {:^.3f}  \t\t| {:^.3f}".format(self.z_m_lambda_eq,
-                                                                                                 self.x_m_lambda_eq,
-                                                                                                 self.t_m_lambda_eq))
-        print("Acc. begins      |      {:^.2f} \t\t |             {:^.3f}  \t\t| {:^.3f}".format(self.z_acc_begin,
-                                                                                                 self.x_acc_begin,
-                                                                                                 self.t_acc_begin))
+    def __init__(self, x):
+        self.x = np.array(x)
 
     def plot(self, quantities, imageName, ylabel, xlabel = r"$x$", legends = [], logscale = False,
                    xlims = [], ylims = [], grid = False):
@@ -122,19 +84,100 @@ class BackgroundCosmology:
 
         # Will include dashed vertical lines. vlines_x specifies the x-coordinates of these lines,
         # while vline_text specifies the text belonging to each line.
-        vlines_x = [self.x_m_r_eq, self.x_m_lambda_eq, self.x_acc_begin]
-        vline_text = ["Matter-rad. eq.", r"Matter-$\Lambda$ eq.", "Acc. starts"]
 
         # Plotting the vertical lines
-        ax.vlines(vlines_x, ymin = ymin, ymax = ymax, colors = ["k", "k", "k"], linestyles = "dashed")
+        ax.vlines(self.vlines_x, ymin = ymin, ymax = ymax, colors = ["k", "k", "k"], linestyles = "dashed")
 
         # x-coordinates of text are determined through trial and error, just making sure the text
         # doesn't overlap for "Matter-rad. eq." and "Acc. starts"
-        ax.text(vlines_x[0], ymax*1.05, vline_text[0], horizontalalignment = "center", fontsize = fontsize)
-        ax.text(vlines_x[1]*0.5, ymax*1.05, vline_text[1], horizontalalignment = "left", fontsize = fontsize)
-        ax.text(vlines_x[2]*1.5, ymax*1.05, vline_text[2], horizontalalignment = "right", fontsize = fontsize)
+        ax.text(self.vlines_x[0], ymax*1.05, self.vline_text[0], horizontalalignment = "center", fontsize = fontsize)
+        ax.text(self.vlines_x[1]*0.5, ymax*1.05, self.vline_text[1], horizontalalignment = "left", fontsize = fontsize)
+        ax.text(self.vlines_x[2]*1.5, ymax*1.05, self.vline_text[2], horizontalalignment = "right", fontsize = fontsize)
 
         fig.savefig("images/{}.pdf".format(imageName), bbox_inches = "tight")
+
+
+class BackgroundCosmology(Plotter):
+    def __init__(self, data_file):
+        self.data = np.loadtxt(data_file)
+        x, self.eta, self.Hp, self.t, self.dHpdx, self.ddHpddx = np.transpose(self.data[:, :6])
+
+        Plotter.__init__(self, x)
+
+        # Reading in all the density parameters from the data-file
+        self.OmegaB, self.OmegaCDM, self.OmegaLambda, self.OmegaR, self.OmegaNu, self.OmegaK = np.transpose(self.data[:, 6:])
+
+        self.Omega_m = self.OmegaB + self.OmegaCDM
+        self.Omega_r = self.OmegaR + self.OmegaNu
+
+        # Index corresponding to today, so self.t[today_index] gives the age of the universe today etc.
+        self.today_index = np.argmin(np.abs(self.x))
+
+        # Redshift of matter-rad. eq., matter-lambda eq., and beinning of accelerated expansion
+        self.z_m_r_eq = self.Omega_m[self.today_index]/self.Omega_r[self.today_index] - 1
+        self.z_m_lambda_eq = (self.OmegaLambda[self.today_index]/self.Omega_m[self.today_index])**(1/3) - 1
+        #self.z_acc_begin = 1/(self.Omega_m[self.today_index]/(2*self.OmegaLambda[self.today_index]))**(1/3) - 1
+        self.z_acc_begin = (2*self.OmegaLambda[self.today_index]/self.Omega_m[self.today_index])**(1/3) - 1
+
+        # The x-values of the same three points in time as above
+        self.x_m_r_eq = z_to_x(self.z_m_r_eq)
+        self.x_m_lambda_eq = z_to_x(self.z_m_lambda_eq)
+        self.x_acc_begin = z_to_x(self.z_acc_begin)
+
+        # Indices for when the three aforementioned points in time occur
+        m_eq_index = np.argmin(np.abs(self.x - self.x_m_r_eq))
+        m_lambda_index = np.argmin(np.abs(self.x - self.x_m_lambda_eq))
+        acc_begin_index = np.argmin(np.abs(self.x - self.x_acc_begin))
+
+        # Times at which the aforementioned points in time occur
+        self.t_m_r_eq = self.t[m_eq_index]/Gyr
+        self.t_m_lambda_eq = self.t[m_lambda_index]/Gyr
+        self.t_acc_begin = self.t[acc_begin_index]/Gyr
+
+        self.vlines_x = [self.x_m_r_eq, self.x_m_lambda_eq, self.x_acc_begin]
+        self.vline_text = ["Matter-rad. eq.", r"Matter-$\Lambda$ eq.", "Acc. starts"]
+
+    def printInfo(self):
+        """
+        Prints the z-, x- and t-values corresponding to matter-rad. eq.,
+        matter-lambda eq. and beginning of accelerated expansion.
+        """
+
+        print("Age of universe: {:.2f}".format(self.t[self.today_index]/Gyr))
+        print("Eta today: {:.2f}".format(self.eta[self.today_index]/(c*Gyr)))
+
+        print("\t\t |\t z \t\t | \t\t x \t\t|  t (Gyr)")
+        print("-----------------|-----------------------|------------------------------|-----------------")
+        print("Matter-rad. eq.  |      {:^.0f} \t\t |             {:^.3f} \t\t| {:^.3e}".format(self.z_m_r_eq, self.x_m_r_eq,
+                                                                                                self.t_m_r_eq))
+        print("Matter-Lambda eq |      {:^.2f} \t\t |             {:^.3f}  \t\t| {:^.3f}".format(self.z_m_lambda_eq,
+                                                                                                 self.x_m_lambda_eq,
+                                                                                                 self.t_m_lambda_eq))
+        print("Acc. begins      |      {:^.2f} \t\t |             {:^.3f}  \t\t| {:^.3f}".format(self.z_acc_begin,
+                                                                                                 self.x_acc_begin,
+                                                                                                 self.t_acc_begin))
+
+class Recombination(Plotter):
+    def __init__(self, data_file):
+        self.data = np.loadtxt(data_file)
+        x, self.Xe, self.ne, self.tau, self.dtaudx, self.ddtauddx, self.g, self.dgdx, self.ddgddx = np.transpose(self.data)
+
+        Plotter.__init__(self, x)
+
+        self.decoupling_index = np.argmin(np.abs(self.tau - 1))
+        self.x_decoupling = self.x[self.decoupling_index]
+        self.z_decoupling = x_to_z(self.x_decoupling)
+
+        self.recomb_index = np.argmin(np.abs(self.Xe - 0.5))
+        self.x_recomb = self.x[self.recomb_index]
+        self.z_recomb = x_to_z(self.x_recomb)
+
+        print(self.z_decoupling)
+        print(self.z_recomb)
+
+
+        self.vlines_x = [-1, -1, -1]
+        self.vline_text = ["", "", ""]
 
 cosmo = BackgroundCosmology("cosmology.txt")
 cosmo.printInfo()
@@ -195,4 +238,15 @@ ax.set_ylabel(r"$d_L$ (Gpc)", fontsize = fontsize)
 ax.legend(fontsize = fontsize)
 ax.tick_params(axis = "both", labelsize = fontsize)
 
-fig.savefig("images/Supernova distances.pdf")
+fig.savefig("images/Supernova distances.pdf", bbox_inches = "tight")
+
+rec = Recombination("recombination.txt")
+rec.plot(rec.Xe, "Xe(x)", r"$X_e$", xlims = [-12, 0])#, logscale = True)
+rec.plot([rec.tau, -rec.dtaudx], "tau(x)", r"$\tau$", logscale = True, legends = [r"$\tau(x)$", r"$\tau'(x)$"],
+          ylims = [1e-8, 1e7])
+
+g = rec.g/np.max(rec.g)
+dgdx = rec.dgdx/np.max(np.abs(rec.dgdx))
+ddgddx = rec.ddgddx/np.max(np.abs(rec.ddgddx))
+rec.plot([g, dgdx, ddgddx], "g(x)", r"$\tilde{g}$", legends = [r"$\tilde{g}$", r"$\tilde{g}'$"
+                                      , r"$\tilde{g}''$"], xlims = [-9, 0])
