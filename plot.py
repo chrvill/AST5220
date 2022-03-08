@@ -45,16 +45,34 @@ class Plotter:
 
         colors = ["b-", "g-", "r-"]
 
+        # ymin and ymax will just be the minimum and maximum y-values to include in the plot
+
+        if len(ylims) == 0:
+            ymin = np.min(quantities)
+            ymax = np.max(quantities)
+        else:
+            # Just making sure ymin and ymax are not outside the ylims (when these ylims are defined)
+            ymin = np.min(quantities) if np.min(quantities) < ylims[0] else ylims[0]
+            ymax = np.max(quantities) if np.max(quantities) < ylims[1] else ylims[1]
+
+        # Plotting vertical lines
+        linestyles = ["dashed", "dotted", "dashdot"]
+        for i in range(len(self.vlines_x)):
+            x = self.vlines_x[i]
+            y_range = np.linspace(ymin, ymax, 2)
+            ax.plot([x, x], y_range, color = "k", alpha = 0.8, label = self.vline_text[i], linestyle = linestyles[i])
+
         # If quantities is mutlidimensional then we are plotting multiple
         # quantities against self.x
         if isinstance(quantities[0], np.ndarray):
             for i in range(len(quantities)):
                 ax.plot(self.x, quantities[i], colors[i], label = legends[i])
 
-            ax.legend()
-
         else:
             ax.plot(self.x, quantities, colors[0])
+
+        if len(legends) > 0:
+            ax.legend()
 
         ax.set_xlabel(xlabel, fontsize = fontsize)
         ax.set_ylabel(ylabel, fontsize = fontsize)
@@ -71,28 +89,6 @@ class Plotter:
 
         if len(ylims) > 0:
             ax.set_ylim(ylims[0], ylims[1])
-
-        # ymin and ymax will just be the minimum and maximum y-values to include in the plot
-
-        if len(ylims) == 0:
-            ymin = np.min(quantities)
-            ymax = np.max(quantities)
-        else:
-            # Just making sure ymin and ymax are not outside the ylims (when these ylims are defined)
-            ymin = np.min(quantities) if np.min(quantities) < ylims[0] else ylims[0]
-            ymax = np.max(quantities) if np.max(quantities) < ylims[1] else ylims[1]
-
-        # Will include dashed vertical lines. vlines_x specifies the x-coordinates of these lines,
-        # while vline_text specifies the text belonging to each line.
-
-        # Plotting the vertical lines
-        ax.vlines(self.vlines_x, ymin = ymin, ymax = ymax, colors = ["k", "k", "k"], linestyles = "dashed")
-
-        # x-coordinates of text are determined through trial and error, just making sure the text
-        # doesn't overlap for "Matter-rad. eq." and "Acc. starts"
-        ax.text(self.vlines_x[0], ymax*1.05, self.vline_text[0], horizontalalignment = "center", fontsize = fontsize)
-        ax.text(self.vlines_x[1]*0.5, ymax*1.05, self.vline_text[1], horizontalalignment = "left", fontsize = fontsize)
-        ax.text(self.vlines_x[2]*1.5, ymax*1.05, self.vline_text[2], horizontalalignment = "right", fontsize = fontsize)
 
         fig.savefig("images/{}.pdf".format(imageName), bbox_inches = "tight")
 
@@ -176,8 +172,8 @@ class Recombination(Plotter):
         print(self.z_recomb)
 
 
-        self.vlines_x = [-1, -1, -1]
-        self.vline_text = ["", "", ""]
+        self.vlines_x = [self.x_decoupling, self.x_recomb]
+        self.vline_text = ["Decoup.", "Recomb."]
 
 cosmo = BackgroundCosmology("cosmology.txt")
 cosmo.printInfo()
@@ -215,6 +211,7 @@ cosmo.plot(cosmo.t/Gyr, "t(x)", r"$t(x)$ (Gyr)", logscale = True, xlims = [-15, 
 """
 Reading in and plotting the supernova-data
 """
+
 sn_data = np.loadtxt("sn_data.txt", skiprows = 1)
 
 # Redshifts and lum. distances from data
@@ -240,13 +237,12 @@ ax.tick_params(axis = "both", labelsize = fontsize)
 
 fig.savefig("images/Supernova distances.pdf", bbox_inches = "tight")
 
-rec = Recombination("recombination.txt")
-rec.plot(rec.Xe, "Xe(x)", r"$X_e$", xlims = [-12, 0])#, logscale = True)
-rec.plot([rec.tau, -rec.dtaudx], "tau(x)", r"$\tau$", logscale = True, legends = [r"$\tau(x)$", r"$\tau'(x)$"],
-          ylims = [1e-8, 1e7])
 
-g = rec.g/np.max(rec.g)
-dgdx = rec.dgdx/np.max(np.abs(rec.dgdx))
-ddgddx = rec.ddgddx/np.max(np.abs(rec.ddgddx))
-rec.plot([g, dgdx, ddgddx], "g(x)", r"$\tilde{g}$", legends = [r"$\tilde{g}$", r"$\tilde{g}'$"
-                                      , r"$\tilde{g}''$"], xlims = [-9, 0])
+rec = Recombination("recombination.txt")
+rec.plot(rec.Xe, "Xe(x)", r"$X_e$", xlims = [-12, 0], legends = [r"$X_e$"])#, logscale = True)
+
+rec.plot([rec.tau, -rec.dtaudx, rec.ddtauddx], "tau(x)", r"$\tau$", logscale = True,
+          legends = [r"$\tau(x)$", r"$\tau'(x)$", r"$\tau''(x)$"], ylims = [1e-8, 1e7])
+
+rec.plot([rec.g, rec.dgdx/10, rec.ddgddx/200], "g(x)", r"$\tilde{g}$", legends = [r"$\tilde{g}$", r"$\tilde{g}'$"
+                                      , r"$\tilde{g}''$"], xlims = [-9, -5])

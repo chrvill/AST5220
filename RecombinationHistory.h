@@ -19,11 +19,11 @@ class RecombinationHistory{
     // Helium fraction
     double Yp;
 
-    // The start and end points for recombination arrays (can be modified)
+    // The start and end points for recombination arrays
     const double x_start  = Constants.x_start;
     const double x_end    = Constants.x_end;
 
-    // Numbers of points of Xe,ne array (modify as you see fit)
+    // Numbers of points of Xe,ne array
     const int npts_rec_arrays = 4000;
 
     // Xe for when to switch between Saha and Peebles
