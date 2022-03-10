@@ -1,5 +1,6 @@
 #include "Utils.h"
 #include "BackgroundCosmology.h"
+#include "RecombinationHistory.h"
 
 int main(int argc, char **argv){
   Utils::StartTiming("Everything");
@@ -16,13 +17,15 @@ int main(int argc, char **argv){
   double Neff        = 0.0;
   double TCMB        = 2.7255;
 
+  double Yp          = 0.245;
+
   //=========================================================================
   // Module I
   //=========================================================================
 
   // Set up and solve the background
   BackgroundCosmology cosmo(h, OmegaB, OmegaCDM, OmegaK, Neff, TCMB);
-  cosmo.set_xlims(-20, 5); // Setting the x-range
+  //cosmo.set_xlims(-20, 5); // Setting the x-range
   cosmo.solve();
   cosmo.info();
 
@@ -45,7 +48,23 @@ int main(int argc, char **argv){
   // Output background evolution quantities
   cosmo.output("cosmology.txt");
 
-  Utils::EndTiming("Everything");
+  //=========================================================================
+  // Module II
+  //=========================================================================
 
+  // Solve the recombination history
+  RecombinationHistory rec(&cosmo, Yp);
+  rec.solve();
+  rec.info();
+
+  std::cout << std::scientific;
+  std::cout << "Xe today: " << rec.Xe_of_x(0) << "\n";
+
+  // Output recombination quantities
+  rec.output("recombination.txt");
+
+  Utils::EndTiming("Everything");
+  // Remove when module is completed
   return 0;
+
 }

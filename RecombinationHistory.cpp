@@ -33,8 +33,8 @@ void RecombinationHistory::solve_number_density_electrons(){
 
   // Initializing arrays storing the x-, Xe- and ne-values
   Vector x_array = Utils::linspace(x_start, x_end, npts_rec_arrays);
-  Vector Xe_arr = Utils::linspace(x_start, x_end, npts_rec_arrays);
-  Vector ne_arr = Utils::linspace(x_start, x_end, npts_rec_arrays);
+  Vector Xe_arr  = Utils::linspace(x_start, x_end, npts_rec_arrays);
+  Vector ne_arr  = Utils::linspace(x_start, x_end, npts_rec_arrays);
 
   // Calculate recombination history
   bool saha_regime = true;
@@ -61,8 +61,9 @@ void RecombinationHistory::solve_number_density_electrons(){
     } else {
       // The Peebles ODE equation
       ODESolver peebles_Xe_ode;
-      ODEFunction dXedx = [&](double x, const double *Xe, double *dXedx){
-        return rhs_peebles_ode(x, Xe, dXedx);
+      ODEFunction dXedx = [&](double x, const double *y, double *dXedx){
+
+        return rhs_peebles_ode(x, y, dXedx);
       };
 
       // Initial condition for Xe given by last valid Xe gotten from Saha eq.
@@ -191,11 +192,12 @@ std::pair<double,double> RecombinationHistory::electron_fraction_from_saha_equat
 //====================================================
 // The right hand side of the dXedx Peebles ODE
 //====================================================
-int RecombinationHistory::rhs_peebles_ode(double x, const double *Xe, double *dXedx){
+int RecombinationHistory::rhs_peebles_ode(double x, const double *y, double *dXedx){
 
   // Current value of a and X_e
-  const double X_e         = Xe[0];
   const double a           = exp(x);
+
+  const double X_e = y[0];
 
   // Physical constants in SI units
   const double k_b         = Constants.k_b;

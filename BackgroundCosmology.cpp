@@ -27,7 +27,7 @@ BackgroundCosmology::BackgroundCosmology(
   OmegaLambda = 1 - (OmegaK + OmegaB + OmegaCDM + OmegaR + OmegaNu);
 
   // The critial density of the universe today
-  const double rho_crit_0 = 3*H0*H0/(8*M_PI*G);
+  rho_crit_0 = 3*H0*H0/(8*M_PI*Constants.G);
 
 }
 
@@ -218,7 +218,7 @@ double BackgroundCosmology::get_OmegaLambda(double x) const{
 }
 
 double BackgroundCosmology::get_OmegaK(double x) const{
-  double a = std::exp(a);
+  double a = std::exp(x);
 
   return OmegaK*std::pow(a, -2)*H0*H0/std::pow(H_of_x(x), 2);
 }
@@ -252,11 +252,11 @@ double BackgroundCosmology::get_Neff() const{
 }
 
 double BackgroundCosmology::get_TCMB(double x) const{
-  if(x == 0.0) return TCMB;
   return TCMB * exp(-x);
 }
 
 double BackgroundCosmology::get_n_b(double x) const{
+  double a = std::exp(x);
   return OmegaB*rho_crit_0/(Constants.m_H*a*a*a);
 }
 
@@ -293,8 +293,8 @@ void BackgroundCosmology::set_xlims(double x_min, double x_max){
 // Output some data to file
 //====================================================
 void BackgroundCosmology::output(const std::string filename) const{
-  const double x_min = -20.0;
-  const double x_max =  5.0;
+  const double x_min = Constants.x_start;
+  const double x_max =  Constants.x_end;
   const int    n_pts =  10000;
 
   Vector x_array = Utils::linspace(x_min, x_max, n_pts);

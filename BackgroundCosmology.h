@@ -23,6 +23,8 @@ class BackgroundCosmology{
     double OmegaK;                  // Curvature density = 1 - OmegaM - OmegaR - OmegaNu - OmegaLambda
     double H0;                      // The Hubble parameter today H0 = 100h km/s/Mpc
 
+    double rho_crit_0;              // The critical density of the universe today
+
     // Start and end of x-integration (can be changed)
     double x_start = Constants.x_start;
     double x_end = Constants.x_end;
