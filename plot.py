@@ -1,9 +1,23 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.optimize as sp
 
 Mpc = 3.08567758e22 # Mpc in m
 Gyr = 1e9*3600*24*365 # Gyr in s
 c = 3e8 # Speed of light in m/s
+m_H = 1.67e-27  # Mass of hydrogen atom in kg
+m_e = 9.11e-31  # Mass of electron in kg
+k_B = 1.38e-23  # Boltzmann's constant
+hbar = 1.0545718e-34 # Reduced Planck constant
+G = 6.67e-11 # Newton's gravitational constant
+eV = 1.6e-19
+
+H0 = 2.2e-18 # Hubble parameter today
+TCMB0 = 2.7255 # Temperature of CMB today
+omega_B0 = 0.05 # Density parameter of baryons today
+rho_crit_0 = 3*H0**2/(8*np.pi*G) # Critical density today
+
+epsilon_0 = 13.6*eV
 
 # Fontsize in the plots
 fontsize = 15
@@ -26,7 +40,7 @@ class Plotter:
         self.x = np.array(x)
 
     def plot(self, quantities, imageName, ylabel, xlabel = r"$x$", legends = [], logscale = False,
-                   xlims = [], ylims = [], grid = False):
+                   xlims = [], ylims = [], grid = False, savefig = True, dashed = []):
         """
         A general function used for plotting. Can be supplied with given quantities and
         plots the quantities against x.
@@ -43,7 +57,7 @@ class Plotter:
 
         fig, ax = plt.subplots()
 
-        colors = ["b-", "g-", "r-"]
+        colors = ["b", "g", "r"]
 
         # ymin and ymax will just be the minimum and maximum y-values to include in the plot
 
@@ -62,14 +76,22 @@ class Plotter:
             y_range = np.linspace(ymin, ymax, 2)
             ax.plot([x, x], y_range, color = "k", alpha = 0.8, label = self.vline_text[i], linestyle = linestyles[i])
 
-        # If quantities is mutlidimensional then we are plotting multiple
+        # If quantities is multidimensional then we are plotting multiple
         # quantities against self.x
         if isinstance(quantities[0], np.ndarray):
             for i in range(len(quantities)):
-                ax.plot(self.x, quantities[i], colors[i], label = legends[i])
+                if len(dashed) > 0:
+                    linestyle = "--" if dashed[i] else "-"
+                else:
+                    linestyle = "-"
+
+                ax.plot(self.x, quantities[i], color = colors[i], linestyle = linestyle, label = legends[i])
 
         else:
-            ax.plot(self.x, quantities, colors[0])
+            if len(legends) > 0:
+                ax.plot(self.x, quantities, colors[0], label = legends[0])
+            else:
+                ax.plot(self.x, quantities, colors[0])
 
         if len(legends) > 0:
             ax.legend()
@@ -90,7 +112,10 @@ class Plotter:
         if len(ylims) > 0:
             ax.set_ylim(ylims[0], ylims[1])
 
-        fig.savefig("images/{}.pdf".format(imageName), bbox_inches = "tight")
+        if savefig:
+            fig.savefig("images/{}.pdf".format(imageName), bbox_inches = "tight")
+        else:
+            return fig, ax
 
 
 class BackgroundCosmology(Plotter):
@@ -112,7 +137,6 @@ class BackgroundCosmology(Plotter):
         # Redshift of matter-rad. eq., matter-lambda eq., and beinning of accelerated expansion
         self.z_m_r_eq = self.Omega_m[self.today_index]/self.Omega_r[self.today_index] - 1
         self.z_m_lambda_eq = (self.OmegaLambda[self.today_index]/self.Omega_m[self.today_index])**(1/3) - 1
-        #self.z_acc_begin = 1/(self.Omega_m[self.today_index]/(2*self.OmegaLambda[self.today_index]))**(1/3) - 1
         self.z_acc_begin = (2*self.OmegaLambda[self.today_index]/self.Omega_m[self.today_index])**(1/3) - 1
 
         # The x-values of the same three points in time as above
@@ -120,42 +144,24 @@ class BackgroundCosmology(Plotter):
         self.x_m_lambda_eq = z_to_x(self.z_m_lambda_eq)
         self.x_acc_begin = z_to_x(self.z_acc_begin)
 
-        # Indices for when the three aforementioned points in time occur
-        m_eq_index = np.argmin(np.abs(self.x - self.x_m_r_eq))
-        m_lambda_index = np.argmin(np.abs(self.x - self.x_m_lambda_eq))
-        acc_begin_index = np.argmin(np.abs(self.x - self.x_acc_begin))
-
-        # Times at which the aforementioned points in time occur
-        self.t_m_r_eq = self.t[m_eq_index]/Gyr
-        self.t_m_lambda_eq = self.t[m_lambda_index]/Gyr
-        self.t_acc_begin = self.t[acc_begin_index]/Gyr
+        self.t_m_r_eq = self.x_to_t(self.x_m_r_eq)/Gyr
+        self.t_m_lambda_eq = self.x_to_t(self.x_m_lambda_eq)/Gyr
+        self.t_acc_begin = self.x_to_t(self.x_acc_begin)/Gyr
 
         self.vlines_x = [self.x_m_r_eq, self.x_m_lambda_eq, self.x_acc_begin]
         self.vline_text = ["Matter-rad. eq.", r"Matter-$\Lambda$ eq.", "Acc. starts"]
 
-    def printInfo(self):
+    def x_to_t(self, x):
         """
-        Prints the z-, x- and t-values corresponding to matter-rad. eq.,
-        matter-lambda eq. and beginning of accelerated expansion.
+        Computes the time corresponding to a given x
         """
-
-        print("Age of universe: {:.2f}".format(self.t[self.today_index]/Gyr))
-        print("Eta today: {:.2f}".format(self.eta[self.today_index]/(c*Gyr)))
-
-        print("\t\t |\t z \t\t | \t\t x \t\t|  t (Gyr)")
-        print("-----------------|-----------------------|------------------------------|-----------------")
-        print("Matter-rad. eq.  |      {:^.0f} \t\t |             {:^.3f} \t\t| {:^.3e}".format(self.z_m_r_eq, self.x_m_r_eq,
-                                                                                                self.t_m_r_eq))
-        print("Matter-Lambda eq |      {:^.2f} \t\t |             {:^.3f}  \t\t| {:^.3f}".format(self.z_m_lambda_eq,
-                                                                                                 self.x_m_lambda_eq,
-                                                                                                 self.t_m_lambda_eq))
-        print("Acc. begins      |      {:^.2f} \t\t |             {:^.3f}  \t\t| {:^.3f}".format(self.z_acc_begin,
-                                                                                                 self.x_acc_begin,
-                                                                                                 self.t_acc_begin))
+        closest_index = np.argmin(np.abs(self.x - x))
+        return self.t[closest_index]
 
 class Recombination(Plotter):
-    def __init__(self, data_file):
+    def __init__(self, data_file, cosmo):
         self.data = np.loadtxt(data_file)
+        self.cosmo = cosmo
         x, self.Xe, self.ne, self.tau, self.dtaudx, self.ddtauddx, self.g, self.dgdx, self.ddgddx = np.transpose(self.data)
 
         Plotter.__init__(self, x)
@@ -163,20 +169,38 @@ class Recombination(Plotter):
         self.decoupling_index = np.argmin(np.abs(self.tau - 1))
         self.x_decoupling = self.x[self.decoupling_index]
         self.z_decoupling = x_to_z(self.x_decoupling)
+        self.t_decoupling = self.cosmo.x_to_t(self.x_decoupling)/Gyr
 
         self.recomb_index = np.argmin(np.abs(self.Xe - 0.5))
         self.x_recomb = self.x[self.recomb_index]
         self.z_recomb = x_to_z(self.x_recomb)
-
-        print(self.z_decoupling)
-        print(self.z_recomb)
-
+        self.t_recomb = self.cosmo.x_to_t(self.x_recomb)/Gyr
 
         self.vlines_x = [self.x_decoupling, self.x_recomb]
         self.vline_text = ["Decoup.", "Recomb."]
 
+def printEvents(event_names, z, x, t):
+    print("{:^17}       |\t{:^5} \t\t |\t       {:^8} \t| {:^5}".format("Event", "z", "x", "t [Gyr]"))
+    print("------------------------|------------------------|------------------------------|-------------")
+
+    indices = np.arange(len(z))
+
+    # Sorting the events, in order of decreasing redshift
+    sorted_indices = np.argsort(z)[::-1]
+
+    for i in range(len(x)):
+        event_name = event_names[sorted_indices[i]]
+        z_i = z[sorted_indices[i]]
+        x_i = x[sorted_indices[i]]
+        t_i = t[sorted_indices[i]]
+
+        # Don't want to print with decimals when z_i > 1
+        if z_i > 1:
+            print("{:^17}       |\t{:^5.0f} \t\t |\t       {:8^.3f} \t\t| {:5^.3e}".format(event_name, z_i, x_i, t_i))
+        else:
+            print("{:^17}       |\t{:^5.2f} \t\t |\t       {:8^.3f} \t\t| {:5^.3e}".format(event_name, z_i, x_i, t_i))
+
 cosmo = BackgroundCosmology("cosmology.txt")
-cosmo.printInfo()
 
 # Plotting the omegas against x
 cosmo.plot([cosmo.Omega_r, cosmo.Omega_m, cosmo.OmegaLambda], "omegas", r"$\Omega_i(x)$",
@@ -238,11 +262,46 @@ ax.tick_params(axis = "both", labelsize = fontsize)
 fig.savefig("images/Supernova distances.pdf", bbox_inches = "tight")
 
 
-rec = Recombination("recombination.txt")
-rec.plot(rec.Xe, "Xe(x)", r"$X_e$", xlims = [-12, 0], legends = [r"$X_e$"])#, logscale = True)
+rec = Recombination("recombination.txt", cosmo)
+fig, ax = rec.plot(rec.Xe, "Xe(x)", r"$X_e$", xlims = [-12, 0], legends = [r"$X_e$"], grid = True, savefig = False)
+ax.text(-10, 1, r"He$^+$ forms")
+ax.text(-10, 0.9, r"He forms")
+ax.text(-10, 0.8, r"H forms")
+
+fig.savefig("Xe(x)", bbox_inches = "tight")
 
 rec.plot([rec.tau, -rec.dtaudx, rec.ddtauddx], "tau(x)", r"$\tau$", logscale = True,
-          legends = [r"$\tau(x)$", r"$\tau'(x)$", r"$\tau''(x)$"], ylims = [1e-8, 1e7])
+          legends = [r"$\tau(x)$", r"$-\tau'(x)$", r"$\tau''(x)$"], xlims = [-12, 0], ylims = [1e-8, 1e7])
 
 rec.plot([rec.g, rec.dgdx/10, rec.ddgddx/200], "g(x)", r"$\tilde{g}$", legends = [r"$\tilde{g}$", r"$\tilde{g}'$"
-                                      , r"$\tilde{g}''$"], xlims = [-9, -5])
+                                      , r"$\tilde{g}''$"], xlims = [-8, -6], dashed = [False, True, True])
+
+rec.plot([rec.g, rec.dgdx/10, rec.ddgddx/200], "g(x)_zoomed_out", r"$\tilde{g}$", legends = [r"$\tilde{g}$", r"$\tilde{g}'$"
+                                      , r"$\tilde{g}''$"], xlims = [-12, 0], dashed = [False, True, True])
+
+# Defining arrays containing the names, redshifts etc for the different events of interest
+event_names = ["Matter-rad. eq.", "Matter-Lambda eq.", "Acc. begin", "Decoupling", "Recombination"]
+z_events = [cosmo.z_m_r_eq, cosmo.z_m_lambda_eq, cosmo.z_acc_begin, rec.z_decoupling, rec.z_recomb]
+x_events = [cosmo.x_m_r_eq, cosmo.x_m_lambda_eq, cosmo.x_acc_begin, rec.x_decoupling, rec.x_recomb]
+t_events = [cosmo.t_m_r_eq, cosmo.t_m_lambda_eq, cosmo.t_acc_begin, rec.t_decoupling, rec.t_recomb]
+
+printEvents(event_names, z_events, x_events, t_events)
+
+def saha_fixed_Xe(x):
+    """
+    Takes the LHS of the Saha eq. minus the RHS for a given x = log(a).
+    Assumes Xe = 0.5, and is used to find the x for which the Saha eq. predicts
+    Xe = 0.5.
+    """
+    C = m_H/(omega_B0*rho_crit_0)*(m_e*k_B*TCMB0/(2*np.pi*hbar**2))**(3/2)
+    b = epsilon_0/(k_B*TCMB0)
+
+    LHS = 0.5
+
+    return C*np.exp(x)**(3/2)*np.exp(-b*np.exp(x)) - LHS
+
+# Finds solution to Saha eq. for Xe = 0.5
+root = sp.root_scalar(saha_fixed_Xe, x0 = -7.2, x1 = -7.25).root
+print("Saha approx.: Recombination at {:.2f}".format(root))
+
+print("Freeze-out abundance: Xe(x = 0) = {:.2e}".format(rec.Xe[-1]))
