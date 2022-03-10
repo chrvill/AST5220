@@ -1,7 +1,9 @@
 # AST5220
 
-Code that will eventually produce the CMB power spectrum. So far the code only computes the background cosmology given
-values for h, and the density parameters today of baryonic matter, dark matter, photons, neutrinos and dark energy.
+Code that will eventually produce the CMB power spectrum. So far the code only computes the following:
+
+  - Background cosmology parameters (eta, H, Hp, t, + derivatives of H and Hp)
+  - Recombination history related parameters (X_e, n_e, tau, g_tilde)
 
 Compiling:
 make
