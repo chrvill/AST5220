@@ -74,7 +74,7 @@ int main(int argc, char **argv){
   //pert.info();
 
   // Output perturbation quantities
-  double kvalue = 0.01 / Constants.Mpc;
+  Vector kvalues{0.1/Constants.Mpc, 0.01/Constants.Mpc, 0.001/Constants.Mpc};
 
   pert.integrate_perturbations();
 
@@ -86,7 +86,15 @@ int main(int argc, char **argv){
   }
   */
 
+  //std::cout << "k_value: \t" << pert.get_Phi(-18, kvalue);
+
   //pert.output(kvalue, "perturbations_k0.01.txt");
+  for (int i = 0; i < kvalues.size(); ++i)
+  {
+    double k = kvalues[i];
+    std::string filename = "perturbations_k" + std::to_string(k*Constants.Mpc) + ".txt";
+    pert.output(k, filename);
+  }
 
   Utils::EndTiming("Everything");
   // Remove when module is completed

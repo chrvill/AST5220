@@ -9,7 +9,9 @@ Perturbations::Perturbations(
     RecombinationHistory *rec) :
   cosmo(cosmo),
   rec(rec)
-{}
+{
+  Theta_spline = std::vector<Spline2D>(Constants.n_ell_theta);
+}
 
 //====================================================
 // Do all the solving
@@ -40,8 +42,8 @@ void Perturbations::integrate_perturbations(){
   // Start at k_min end at k_max with n_k points with either a
   // quadratic or a logarithmic spacing
   //===================================================================
-  Vector k_array(n_k);
-  //k_array[0] = k_min;
+  Vector k_array = Utils::linspace(k_min, k_max, n_k);
+  //Vector k_array{k_min, k_max};
 
   Vector delta_cdm(n_x*n_k);
   Vector delta_b(n_x*n_k);
@@ -51,19 +53,24 @@ void Perturbations::integrate_perturbations(){
 
   Vector2D Thetas(Constants.n_ell_theta, Vector(n_x*n_k, 0.0));
 
+  #pragma omp parallel for schedule(dynamic, 4)
+  //#pragma omp parallel for
   // Loop over all wavenumbers
   for(int ik = 0; ik < n_k; ik++){
 
+    /*
     // Progress bar...
     if( (10*ik) / n_k != (10*ik+10) / n_k ) {
       std::cout << (100*ik+100)/n_k << "% " << std::flush;
       if(ik == n_k-1) std::cout << std::endl;
     }
+    */
 
     Vector2D y(n_x, Vector(Constants.n_ell_tot_full, 0.0));
 
     // Current value of k
     double k = k_array[ik];
+    std::cout << k << "\n";
 
     // Find value to integrate to
     double x_end_tight = get_tight_coupling_time(k);
@@ -94,14 +101,6 @@ void Perturbations::integrate_perturbations(){
 
     Vector y_end_tight = y_tight_coupling.back();
 
-    /*
-    for (auto y: y_end_tight)
-    {
-      std::cout << y << "\t";
-    }
-    std::cout << "\n";
-    */
-
     //====================================================================
     // TODO: Full equation integration
     // Remember to implement the routines:
@@ -116,14 +115,6 @@ void Perturbations::integrate_perturbations(){
 
     // Set up initial conditions (y_tight_coupling is the solution at the end of tight coupling)
     auto y_full_ini = set_ic_after_tight_coupling(y_end_tight, x_end_tight, k);
-
-    /*
-    for (auto y: y_full_ini)
-    {
-      std::cout << y << "\t";
-    }
-    std::cout << "\n";
-    */
 
     // The full ODE system
     ODEFunction dydx_full = [&](double x, const double *y, double *dydx){
@@ -144,11 +135,74 @@ void Perturbations::integrate_perturbations(){
       std::copy(y_tight_coupling[ix].begin(), y_tight_coupling[ix].end(), y[ix].begin());
     }
 
-    //std::copy(y_tight_coupling.begin(), y_tight_coupling.end() - 1, y.begin());
+    /*
+    static bool print = true;
+    if (print)
+    {
+      for (int i = 0; i < y_tight_coupling_ini.size(); ++i)
+      {
+        std::cout << y_tight_coupling[0][i] << "\n";
+      }
+    }
+
+    print = false;
+    */
 
     // Inserting the contents of y_full into y
     std::copy(y_full.begin(), y_full.end(), y.begin() + index_end_tight - 1);
 
+    //std::copy(y.begin()[Constants.ind_deltacdm], y.end()[Constants.ind_deltab], delta_cdm.begin() + n_x*ik);
+
+    /*
+    for (int j = 0; j < n_x; ++j)
+    {
+      for (int i = 0; i < Constants.n_ell_tot_full; ++i)
+      {
+        if (j < index_end_tight - 1)
+        {
+          y[j][i] = y_tight_coupling[j][i];
+        }
+
+        y[j][i] = y_full[i - (index_end_tight - 1)][i];
+      }
+    }
+    */
+
+    /*
+    for (int j = 0; j < index_end_tight - 1; ++j)
+    {
+      for (int i = 0; i < Constants.n_ell_tot_tc; ++i)
+      {
+        y[j][i] = y_tight_coupling[j][i];
+      }
+    }
+
+    for (int j = index_end_tight - 1; j < n_x; ++j)
+    {
+      for (int i = 0; i < Constants.n_ell_tot_full; ++i)
+      {
+        y[j][i] = y_full[j - (index_end_tight - 1)][i];
+      }
+    }
+    */
+
+    for (int ix = 0; ix < n_x; ++ix)
+    {
+      int index = ix + n_x*ik;
+
+      delta_cdm[index] = y[ix][Constants.ind_deltacdm];
+      delta_b[index]   = y[ix][Constants.ind_deltab];
+      v_cdm[index]     = y[ix][Constants.ind_vcdm];
+      v_b[index]       = y[ix][Constants.ind_vb];
+      Phi[index]       = y[ix][Constants.ind_Phi];
+
+      for (int l = 0; l < Constants.n_ell_theta; ++l)
+      {
+        Thetas[l][index] = y[ix][Constants.ind_start_theta + l];
+      }
+    }
+
+    /*
     std::copy(y[Constants.ind_deltacdm].begin(), y[Constants.ind_deltacdm].end(), delta_cdm.begin() + n_x*ik);
     std::copy(y[Constants.ind_deltab].begin(), y[Constants.ind_deltab].end(), delta_b.begin() + n_x*ik);
     std::copy(y[Constants.ind_vcdm].begin(), y[Constants.ind_vcdm].end(), v_cdm.begin() + n_x*ik);
@@ -157,39 +211,11 @@ void Perturbations::integrate_perturbations(){
 
     for (int l = 0; l < Constants.n_ell_theta; ++l)
     {
-      std::copy(y[Constants.ind_start_theta + l].begin(), y[Constants.ind_start_theta + l].end(),
-                Thetas.begin() + n_x*ik);
+      int index_theta = Constants.ind_start_theta + l;
+      std::copy(y[index_theta].begin(), y[index_theta].end(), Thetas[l].begin() + n_x*ik);
     }
 
-    delta_cdm_spline.create(x_array, delta_cdm, "delta_cdm_spline");
-    delta_b_spline.create(x_array, delta_b, "delta_b_spline");
-    v_cdm_spline.create(x_array, v_cdm, "v_cdm_spline");
-    v_b_spline.create(x_array, v_b, "v_b_spline");
-    Phi_spline.create(x_array, Phi, "Phi_spline");
-
-    for (int l = 0; l < Constants.n_ell_theta; ++l)
-    {
-      std::string spline_name = "theta_" + to_string(l) << "_spline";
-
-      Theta_spline[l].create(x_array, Thetas[l], spline_name);
-    }
-
-    /*
-    for (int ix = 0; ix < n_x - index_end_tight + 1; ++ix)
-    {
-      std::copy(y_full[ix].begin(), y_full[ix].end(), y[ix + index_end_tight - 1].begin());
-    }
     */
-
-
-    /*
-    for (auto x: y.back())
-    {
-      std::cout << x << "\n";
-    }
-    */
-
-
     //===================================================================
     // TODO: remember to store the data found from integrating so we can
     // spline it below
@@ -218,9 +244,20 @@ void Perturbations::integrate_perturbations(){
   //=============================================================================
   // TODO: Make all splines needed: Theta0,Theta1,Theta2,Phi,Psi,...
   //=============================================================================
-  // ...
-  // ...
-  // ...
+
+  delta_cdm_spline.create(x_array, k_array, delta_cdm);
+  delta_b_spline.create(x_array, k_array, delta_b);
+  v_cdm_spline.create(x_array, k_array, v_cdm);
+  v_b_spline.create(x_array, k_array, v_b);
+  Phi_spline.create(x_array, k_array, Phi);
+
+  for (int l = 0; l < Constants.n_ell_theta; ++l)
+  {
+    std::string spline_name = "theta_" + std::to_string(l) + "_spline";
+
+    Theta_spline[l].create(x_array, k_array, Thetas[l], spline_name);
+  }
+
 }
 
 //====================================================
@@ -469,11 +506,13 @@ void Perturbations::compute_source_functions(){
     }
   }
 
+  /*
   // Spline the source functions
   ST_spline.create (x_array, k_array, ST_array, "Source_Temp_x_k");
   if(Constants.polarization){
     SE_spline.create (x_array, k_array, SE_array, "Source_Pol_x_k");
   }
+  */
 
   Utils::EndTiming("source");
 }
@@ -641,6 +680,8 @@ int Perturbations::rhs_full_ode(double x, double k, const double *y, double *dyd
   const double c = Constants.c;
   const double ck_Hp = c*k/Hp;
 
+
+
   //=============================================================================
   // TODO: fill in the expressions for all the derivatives
   //=============================================================================
@@ -737,6 +778,8 @@ double Perturbations::get_v_b(const double x, const double k) const{
 double Perturbations::get_Phi(const double x, const double k) const{
   return Phi_spline(x,k);
 }
+
+/*
 double Perturbations::get_Psi(const double x, const double k) const{
   return Psi_spline(x,k);
 }
@@ -749,15 +792,20 @@ double Perturbations::get_Source_T(const double x, const double k) const{
 double Perturbations::get_Source_E(const double x, const double k) const{
   return SE_spline(x,k);
 }
+*/
+
 double Perturbations::get_Theta(const double x, const double k, const int ell) const{
   return Theta_spline[ell](x,k);
 }
+
+/*
 double Perturbations::get_Theta_p(const double x, const double k, const int ell) const{
   return Theta_p_spline[ell](x,k);
 }
 double Perturbations::get_Nu(const double x, const double k, const int ell) const{
   return Nu_spline[ell](x,k);
 }
+*/
 
 //====================================================
 // Print some useful info about the class
@@ -826,16 +874,20 @@ void Perturbations::output(const double k, const std::string filename) const{
   auto print_data = [&] (const double x) {
     double arg = k * (cosmo->eta_of_x(0.0) - cosmo->eta_of_x(x));
     fp << x                  << " ";
+    fp << get_delta_cdm(x, k)<< " ";
+    fp << get_delta_b(x, k)  << " ";
+    fp << get_v_cdm(x, k)    << " ";
+    fp << get_v_b(x, k)      << " ";
     fp << get_Theta(x,k,0)   << " ";
     fp << get_Theta(x,k,1)   << " ";
     fp << get_Theta(x,k,2)   << " ";
     fp << get_Phi(x,k)       << " ";
-    fp << get_Psi(x,k)       << " ";
-    fp << get_Pi(x,k)        << " ";
-    fp << get_Source_T(x,k)  << " ";
-    fp << get_Source_T(x,k) * Utils::j_ell(5,   arg)           << " ";
-    fp << get_Source_T(x,k) * Utils::j_ell(50,  arg)           << " ";
-    fp << get_Source_T(x,k) * Utils::j_ell(500, arg)           << " ";
+    //fp << get_Psi(x,k)       << " ";
+    //fp << get_Pi(x,k)        << " ";
+    //fp << get_Source_T(x,k)  << " ";
+    //fp << get_Source_T(x,k) * Utils::j_ell(5,   arg)           << " ";
+    //fp << get_Source_T(x,k) * Utils::j_ell(50,  arg)           << " ";
+    //fp << get_Source_T(x,k) * Utils::j_ell(500, arg)           << " ";
     fp << "\n";
   };
   std::for_each(x_array.begin(), x_array.end(), print_data);

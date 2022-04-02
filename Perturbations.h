@@ -14,6 +14,7 @@ using Vector   = std::vector<double>;
 using Vector2D = std::vector<Vector>;
 
 class Perturbations{
+//private:
 public:
 
     BackgroundCosmology *cosmo = nullptr;
@@ -21,7 +22,7 @@ public:
 
     // The scales we integrate over
     //const int n_k        = 100;
-    const int n_k        = 1;
+    const int n_k        = 100;
     const double k_min   = Constants.k_min;
     const double k_max   = Constants.k_max;
 
@@ -43,16 +44,19 @@ public:
     Spline2D Psi_spline{"Psi_spline"};
 
     // Splines of source functions (ST for temperature; SE for polarization)
-    Spline2D ST_spline{"ST_spline"};
-    Spline2D SE_spline{"SE_spline"};
+    //Spline2D ST_spline{"ST_spline"};
+    //Spline2D SE_spline{"SE_spline"};
 
     // Splines of mulipole quantities
     // NB: If you use there you have to allocate the container first
     // e.g. Theta_spline = std::vector<Spline2D>(n_ell_theta); before using it
     std::vector<Spline2D> Theta_spline;
-    Theta_spline = std::vector<Spline2D>(n_ell_theta);
     //std::vector<Spline2D> Theta_p_spline;
     //std::vector<Spline2D> Nu_spline;
+
+    //Theta_spline = std::vector<Spline2D>(Constants.n_ell_theta);
+
+    //Theta_spline = std::vector<Spline2D>(n_ell_theta)
 
     //==========================================================
     // [1] Tight coupling ODE system
