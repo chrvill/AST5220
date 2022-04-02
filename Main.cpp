@@ -1,6 +1,7 @@
 #include "Utils.h"
 #include "BackgroundCosmology.h"
 #include "RecombinationHistory.h"
+#include "Perturbations.h"
 
 int main(int argc, char **argv){
   Utils::StartTiming("Everything");
@@ -58,10 +59,34 @@ int main(int argc, char **argv){
   rec.info();
 
   std::cout << std::scientific;
-  std::cout << "Xe today: " << rec.Xe_of_x(0) << "\n";
+  std::cout << "Xe today: " << rec.Xe_of_x(0) << "\n\n";
 
   // Output recombination quantities
   rec.output("recombination.txt");
+
+  //=========================================================================
+  // Module III
+  //=========================================================================
+
+  // Solve the perturbations
+  Perturbations pert(&cosmo, &rec);
+  //pert.solve();
+  //pert.info();
+
+  // Output perturbation quantities
+  double kvalue = 0.01 / Constants.Mpc;
+
+  pert.integrate_perturbations();
+
+  /*
+  Vector y_tc = pert.set_ic(x, kvalue);
+  for (auto element: y_tc)
+  {
+    std::cout << element << "\n";
+  }
+  */
+
+  //pert.output(kvalue, "perturbations_k0.01.txt");
 
   Utils::EndTiming("Everything");
   // Remove when module is completed

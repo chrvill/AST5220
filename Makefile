@@ -38,15 +38,16 @@ TARGETS := cmb
 all: $(TARGETS)
 
 # OBJECT FILES
-OBJS = Main.o Utils.o Spline.o ODESolver.o BackgroundCosmology.o RecombinationHistory.o
+OBJS = Main.o Utils.o Spline.o ODESolver.o BackgroundCosmology.o RecombinationHistory.o Perturbations.o
 
 # DEPENDENCIES
-Main.o                  : BackgroundCosmology.h RecombinationHistory.h
+Main.o                  : BackgroundCosmology.h RecombinationHistory.h Perturbations.h
 Spline.o                : Spline.h
 ODESolver.o             : ODESolver.h
 Utils.o                 : Utils.h Spline.h ODESolver.h
 BackgroundCosmology.o   : BackgroundCosmology.h Utils.h Spline.h ODESolver.h
-RecombinationHistory.o  : RecombinationHistory.h BackgroundCosmology.h
+RecombinationHistory.o  : RecombinationHistory.h BackgroundCosmology.h Utils.h Spline.h ODESolver.h
+Perturbations.o					: Perturbations.h RecombinationHistory.h BackgroundCosmology.h Utils.h Spline.h ODESolver.h
 
 cmb: $(OBJS)
 	${CC} -o $@ $^ $C $(INC) $(LIBS)

@@ -94,7 +94,7 @@ class Plotter:
                 ax.plot(self.x, quantities, colors[0])
 
         if len(legends) > 0:
-            ax.legend()
+            ax.legend(fontsize = fontsize)
 
         ax.set_xlabel(xlabel, fontsize = fontsize)
         ax.set_ylabel(ylabel, fontsize = fontsize)
@@ -199,6 +199,8 @@ def printEvents(event_names, z, x, t):
             print("{:^17}       |\t{:^5.0f} \t\t |\t       {:8^.3f} \t\t| {:5^.3e}".format(event_name, z_i, x_i, t_i))
         else:
             print("{:^17}       |\t{:^5.2f} \t\t |\t       {:8^.3f} \t\t| {:5^.3e}".format(event_name, z_i, x_i, t_i))
+
+    print("\n")
 
 cosmo = BackgroundCosmology("cosmology.txt")
 
@@ -305,3 +307,44 @@ root = sp.root_scalar(saha_fixed_Xe, x0 = -7.2, x1 = -7.25).root
 print("Saha approx.: Recombination at {:.2f}".format(root))
 
 print("Freeze-out abundance: Xe(x = 0) = {:.2e}".format(rec.Xe[-1]))
+
+recomb_temp = TCMB0/np.exp(rec.x_recomb)
+print("Recombination temperature: {:.2f} eV".format(recomb_temp*k_B/eV))
+
+fig, ax = plt.subplots()
+ax.plot(cosmo.t/Gyr, np.exp(cosmo.x)*cosmo.eta/(1e3*Mpc))
+fig.savefig("images/test.pdf")
+
+k = 1.62e-27
+Hp = 1.61e-12
+a = 1e-8
+
+omega_b0    = 0.05
+omega_cdm0  = 0.267
+omega_r0    = 5.51e-5
+H0 = 2.17e-18
+dtaudx = -2.72e7
+
+psi = -2/3
+phi = -psi
+delta_cdm = -3/2*psi
+delta_b = delta_cdm
+v_cdm = c*k/(2*Hp)*psi
+v_b = v_cdm
+
+theta0 = -1/2*psi
+theta_1 = c*k/(6*Hp)*psi
+
+print(delta_cdm)
+print(delta_b)
+print(theta0)
+
+print(v_cdm)
+print(v_b)
+
+#dphidx = psi - c**2*k**2/(3*Hp**2)*phi + H0**2/(2*Hp**2)*(omega_cdm0/a*delta_cdm + omega_b0/a*delta_b + 4*omega_r0/(a**2)*theta0)
+dphidx = psi - 1/3*(c*k/Hp)**2*phi + 1/2*(H0/Hp)**2*(omega_cdm0/a*delta_cdm + omega_b0/a*delta_b + 4*omega_r0/(a**2)*theta0)
+
+print(dphidx)
+
+ddelta_cdmdx = c*k/Hp*v_cdm - 3*dphidx
