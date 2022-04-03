@@ -53,7 +53,7 @@ void Perturbations::integrate_perturbations(){
     k_array[i] = exp(exponents[i]);
   }
 
-  //Vector k_array{k_max};
+  //Vector k_array{0.1/Constants.Mpc};
 
   Vector delta_cdm(n_x*n_k);
   Vector delta_b(n_x*n_k);
@@ -105,18 +105,19 @@ void Perturbations::integrate_perturbations(){
     Vector x_tight;
     x_tight = Vector(x_array.begin(), x_array.begin() + index_end_tight);
 
-    /*
-    for (auto x: y_tight_coupling_ini)
-    {
-      std::cout << x << "\n";
-    }
-    */
-
     ODESolver tc_ode;
     tc_ode.solve(dydx_tight_coupling, x_tight, y_tight_coupling_ini);
     auto y_tight_coupling = tc_ode.get_data();
 
     Vector y_end_tight = y_tight_coupling.back();
+
+    /*
+    std::cout << "\n";
+    for (int ix = 0; ix < index_end_tight - 1; ++ix)
+    {
+      std::cout << y_tight_coupling[ix][4]<< "\t" << x_array[ix] << "\n";
+    }
+    */
 
     //====================================================================
     // TODO: Full equation integration
@@ -130,8 +131,8 @@ void Perturbations::integrate_perturbations(){
     // which corresponds to x = x_array.begin() + index_end_tight - 1.
     x_after_tight = Vector(x_array.begin() + index_end_tight - 1, x_array.end());
 
-    // Set up initial conditions (y_tight_coupling is the solution at the end of tight coupling)
-    auto y_full_ini = set_ic_after_tight_coupling(y_end_tight, x_end_tight, k);
+    // Set up initial conditions
+    auto y_full_ini = set_ic_after_tight_coupling(y_end_tight, x_after_tight[0], k);
 
     // The full ODE system
     ODEFunction dydx_full = [&](double x, const double *y, double *dydx){
@@ -416,7 +417,7 @@ double Perturbations::get_tight_coupling_time(const double k) const{
     const double dtaudx = rec->dtaudx_of_x(x);
     const double Xe     = rec->Xe_of_x(x);
 
-    if ((abs(dtaudx) < 10.0*c*k/Hp) || (abs(dtaudx) < 10) || (Xe < 1))
+    if ((abs(dtaudx) < 10.0*c*k/Hp) || (abs(dtaudx) < 10) || (Xe < 1))//(Xe < 0.999999))
     {
       x_tight_coupling_end = x;
       //std::cout << "x_tight = " << x_tight_coupling_end << "\n";
@@ -544,7 +545,7 @@ int Perturbations::rhs_tight_coupling_ode(double x, double k, const double *y, d
 
   const double Theta0 = *(Theta);
   const double Theta1 = *(Theta + 1);
-  double Theta2 = -20.0/45.0*ck_Hp/dtaudx*Theta1;
+  const double Theta2 = -20.0/45.0*ck_Hp/dtaudx*Theta1;
 
   // SET: Scalar quantities (Phi, delta, v, ...)
   double Psi = -Phi - 12.0*H0*H0/(c*c*k*k*a*a)*Omega_gamma0*Theta2;
