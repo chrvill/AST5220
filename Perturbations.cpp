@@ -83,6 +83,7 @@ void Perturbations::integrate_perturbations(){
 
     // Find value to integrate to
     double x_end_tight = get_tight_coupling_time(k);
+    //std::cout << x_end_tight << "\n\n";
 
     //===================================================================
     // TODO: Tight coupling integration
@@ -103,6 +104,13 @@ void Perturbations::integrate_perturbations(){
 
     Vector x_tight;
     x_tight = Vector(x_array.begin(), x_array.begin() + index_end_tight);
+
+    /*
+    for (auto x: y_tight_coupling_ini)
+    {
+      std::cout << x << "\n";
+    }
+    */
 
     ODESolver tc_ode;
     tc_ode.solve(dydx_tight_coupling, x_tight, y_tight_coupling_ini);
@@ -284,7 +292,7 @@ Vector Perturbations::set_ic_after_tight_coupling(
 
   const double Hp     = cosmo->Hp_of_x(x);
   const double dtaudx = rec->dtaudx_of_x(x);
-  const double c = Constants.c;
+  const double c      = Constants.c;
 
   const double ck_Hptau = c*k/(Hp*dtaudx);
 
@@ -325,7 +333,7 @@ Vector Perturbations::set_ic_after_tight_coupling(
   double &v_b             =  y[Constants.ind_vb_tc];
   double &Phi             =  y[Constants.ind_Phi_tc];
   double *Theta           = &y[Constants.ind_start_theta_tc];
-  double *Theta_p         = &y[Constants.ind_start_thetap_tc];
+  //double *Theta_p         = &y[Constants.ind_start_thetap_tc];
   //double *Nu              = &y[Constants.ind_start_nu_tc];
 
   //=============================================================================
@@ -358,13 +366,19 @@ Vector Perturbations::set_ic_after_tight_coupling(
     *Theta_l = -l/(2.0*l + 1.0)*ck_Hptau*(*Theta_lmin1);
   }
 
-  /*
-  for (auto x: y)
-  {
-    std::cout << x << "\n";
-  }
-  */
+  static bool print = true;
 
+  if (print)
+  {
+
+    //std::cout << Phi << "\n";
+    /*
+    for (auto x: y)
+    {
+      std::cout << x << "\n";
+    }
+    */
+  }
 
   // SET: Photon polarization perturbations (Theta_p_ell)
   if(polarization){
@@ -402,7 +416,7 @@ double Perturbations::get_tight_coupling_time(const double k) const{
     const double dtaudx = rec->dtaudx_of_x(x);
     const double Xe     = rec->Xe_of_x(x);
 
-    if ((abs(dtaudx) < 10.0*c*k/Hp) || (abs(dtaudx) < 10) || (Xe < 0.999999))
+    if ((abs(dtaudx) < 10.0*c*k/Hp) || (abs(dtaudx) < 10) || (Xe < 1))
     {
       x_tight_coupling_end = x;
       //std::cout << "x_tight = " << x_tight_coupling_end << "\n";
@@ -479,9 +493,9 @@ void Perturbations::compute_source_functions(){
 // Derivatives in the tight coupling regime
 int Perturbations::rhs_tight_coupling_ode(double x, double k, const double *y, double *dydx){
 
-  const double H0           = cosmo->H_of_x(0);
   const double Hp           = cosmo->Hp_of_x(x);
   const double dHpdx        = cosmo->dHpdx_of_x(x);
+  const double H0           = cosmo->H_of_x(0);
   const double Omega_gamma0 = cosmo->get_OmegaR(0);
   const double OmegaCDM0    = cosmo->get_OmegaCDM(0);
   const double OmegaB0      = cosmo->get_OmegaB(0);
@@ -528,57 +542,35 @@ int Perturbations::rhs_tight_coupling_ode(double x, double k, const double *y, d
   const double c = Constants.c;
   const double ck_Hp = c*k/Hp;
 
+  const double Theta0 = *(Theta);
+  const double Theta1 = *(Theta + 1);
+  double Theta2 = -20.0/45.0*ck_Hp/dtaudx*Theta1;
+
   // SET: Scalar quantities (Phi, delta, v, ...)
-  double Psi = -Phi - 12.0*H0*H0/(c*c*k*k*a*a)*Omega_gamma0*(*(Theta + 2));
-  dPhidx = Psi - ck_Hp*ck_Hp/3.0*Phi + H0*H0/(2.0*Hp*Hp)*(OmegaCDM0*1.0/a*delta_cdm \
-                                                            + OmegaB0*1.0/a*delta_b + \
-                                                            + 4*Omega_gamma0*1.0/(a*a)*(*Theta));
+  double Psi = -Phi - 12.0*H0*H0/(c*c*k*k*a*a)*Omega_gamma0*Theta2;
+  dPhidx = Psi - ck_Hp*ck_Hp/3.0*Phi + H0*H0/(2.0*Hp*Hp)*(OmegaCDM0/a*delta_cdm \
+                                                            + OmegaB0/a*delta_b \
+                                                            + 4*Omega_gamma0/(a*a)*Theta0);
+
+  //std::cout << Phi << "\n";
 
   ddelta_cdmdx = ck_Hp*v_cdm - 3*dPhidx;
   ddelta_bdx = ck_Hp*v_b - 3*dPhidx;
   dv_cdmdx = -v_cdm - ck_Hp*Psi;
 
-  double Theta_0 = *(Theta);
-  double Theta_1 = *(Theta + 1);
-  double Theta_2 = *(Theta + 2);
-
-  double dThetadx0 = -ck_Hp*Theta_1 - dPhidx;
-
-  /*
-  // Seems like the position of the first minus sign was causing the issues
-  double q = ((-(1.0 - R)*dtaudx + (1.0 + R)*ddtauddx)*(3*Theta_1 + v_b) - ck_Hp*Psi \
-              + (1 - dHpdx/Hp)*ck_Hp*(-Theta_0 + 2*Theta_2) - ck_Hp*dThetadx0)/((1.0 + R)*dtaudx + dHpdx/Hp - 1);
-
-  dv_bdx = 1.0/(1.0 + R)*(-v_b - ck_Hp*Psi + R*(q + ck_Hp*(-Theta_0 + 2*Theta_2) - ck_Hp*Psi));
-  */
-
-  double q = (-((1.0 - R)*dtaudx + (1.0 + R)*ddtauddx)*(3*Theta_1 + v_b) - ck_Hp*Psi \
-              + (1.0 - dHpdx/Hp)*ck_Hp*(-Theta_0 + 2*Theta_2) - ck_Hp*dThetadx0)/((1.0 + R)*dtaudx + dHpdx/Hp - 1.0);
-
-  dv_bdx = 1.0/(1.0 + R)*(-v_b - ck_Hp*Psi + R*(q + ck_Hp*(-Theta_0 + 2*Theta_2) - ck_Hp*Psi));
-
+  //double dThetadx0 = -ck_Hp*Theta1 - dPhidx;
   double *dTheta0dx = dThetadx;
   double *dTheta1dx = dThetadx + 1;
 
-  *dTheta0dx = -ck_Hp*Theta_1 - dPhidx;
+  *dTheta0dx = -ck_Hp*Theta1 - dPhidx;
+
+  double q = (-((1.0 - R)*dtaudx + (1.0 + R)*ddtauddx)*(3*Theta1 + v_b) - ck_Hp*Psi \
+              + (1.0 - dHpdx/Hp)*ck_Hp*(-Theta0 + 2*Theta2) - ck_Hp*(*dTheta0dx))/((1.0 + R)*dtaudx + dHpdx/Hp - 1.0);
+
+  dv_bdx = 1.0/(1.0 + R)*(-v_b - ck_Hp*Psi + R*(q + ck_Hp*(-Theta0 + 2*Theta2) - ck_Hp*Psi));
+
+  //*dTheta0dx = -ck_Hp*Theta_1 - dPhidx;
   *dTheta1dx = 1.0/3.0*(q - dv_bdx);
-
-  /*
-  static bool print = true;
-  if (print)
-  {
-    std::cout << dPhidx << "\n";
-    std::cout << ddelta_cdmdx << "\n";
-    std::cout << ddelta_bdx << "\n";
-    std::cout << dv_cdmdx << "\n";
-    std::cout << dv_bdx << "\n";
-    std::cout << *dTheta1dx << "\n";
-
-    std::cout << q << "\n";
-  }
-
-  print = false;
-  */
 
   // SET: Neutrino mutlipoles (Nu_ell)
   if(neutrinos){
@@ -660,48 +652,48 @@ int Perturbations::rhs_full_ode(double x, double k, const double *y, double *dyd
   // TODO: fill in the expressions for all the derivatives
   //=============================================================================
 
-  const double *Theta0 = Theta;
-  const double *Theta1 = Theta + 1;
-  const double *Theta2 = Theta + 2;
+  const double Theta0 = *(Theta);
+  const double Theta1 = *(Theta + 1);
+  const double Theta2 = *(Theta + 2);
 
   // SET: Scalar quantities (Phi, delta, v, ...)
-  double Psi = -Phi - 12.0*(H0*H0/(c*c*k*k*a*a))*Omega_gamma0*(*(Theta2));
+  double Psi = -Phi - 12.0*(H0*H0/(c*c*k*k*a*a))*Omega_gamma0*Theta2;
   dPhidx = Psi - 1.0/3.0*ck_Hp*ck_Hp*Phi + 1.0/2.0*(H0*H0/(Hp*Hp))*(OmegaCDM0/a*delta_cdm + OmegaB0/a*delta_b \
-                                                                  + 4*Omega_gamma0/(a*a)*(*Theta0));
+                                                                  + 4*Omega_gamma0/(a*a)*Theta0);
 
   ddelta_cdmdx = ck_Hp*v_cdm - 3*dPhidx;
   ddelta_bdx   = ck_Hp*v_b - 3*dPhidx;
 
   dv_cdmdx     = -v_cdm - ck_Hp*Psi;
-  dv_bdx       = -v_b - ck_Hp*Psi + dtaudx*R*(3*(*Theta1) + v_b);
+  dv_bdx       = -v_b - ck_Hp*Psi + dtaudx*R*(3*Theta1 + v_b);
 
   // SET: Photon multipoles (Theta_ell)
   double *dTheta0dx = dThetadx;
   double *dTheta1dx = dThetadx + 1;
 
-  *dTheta0dx = -ck_Hp*(*Theta1) - dPhidx;
-  *dTheta1dx = ck_Hp/3.0*(*Theta0) - 2.0*ck_Hp/3.0*(*Theta2) + ck_Hp/3.0*Psi + dtaudx*(*Theta1 + 1.0/3.0*v_b);
+  *dTheta0dx = -ck_Hp*Theta1 - dPhidx;
+  *dTheta1dx = ck_Hp/3.0*Theta0 - 2.0*ck_Hp/3.0*Theta2 + ck_Hp/3.0*Psi + dtaudx*(Theta1 + 1.0/3.0*v_b);
 
   for (int l = 2; l < Constants.n_ell_theta; ++l)
   {
     double *dThetaldx         = dThetadx + l;
-    const double *Thetal      = Theta + l;
-    const double *Thetalmin1  = Theta + (l - 1);
+    const double Thetal      = *(Theta + l);
+    const double Thetalmin1  = *(Theta + l - 1);
 
     if (l == Constants.n_ell_theta - 1)
     {
-      *dThetaldx = ck_Hp*(*Thetalmin1) - c/(Hp*eta)*(l + 1.0)*(*Thetal) + dtaudx*(*Thetal);
+      *dThetaldx = ck_Hp*Thetalmin1 - c/(Hp*eta)*(l + 1.0)*Thetal + dtaudx*Thetal;
     }
     else
     {
-      const double *Thetalplus1 = Theta + (l + 1);
+      const double Thetalplus1 = *(Theta + l + 1);
 
-      *dThetaldx = l*ck_Hp/(2.0*l + 1.0)*(*Thetalmin1) - (l + 1.0)/(2.0*l + 1.0)*ck_Hp*(*Thetalplus1) + \
-                 + dtaudx*(*Thetal);
+      *dThetaldx = l*ck_Hp/(2.0*l + 1.0)*Thetalmin1 - (l + 1.0)/(2.0*l + 1.0)*ck_Hp*Thetalplus1 + \
+                 + dtaudx*Thetal;
 
       if (l == 2)
       {
-        *dThetaldx -= dtaudx/10.0*(*Theta2);
+        *dThetaldx -= dtaudx/10.0*Thetal;
       }
 
     }
