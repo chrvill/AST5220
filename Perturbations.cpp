@@ -42,8 +42,18 @@ void Perturbations::integrate_perturbations(){
   // Start at k_min end at k_max with n_k points with either a
   // quadratic or a logarithmic spacing
   //===================================================================
-  Vector k_array = Utils::linspace(k_min, k_max, n_k);
-  //Vector k_array{k_min, k_max};
+  //Vector k_array = Utils::linspace(k_min, k_max, n_k);
+
+  Vector exponents = Utils::linspace(log(k_min), log(k_max), n_k);
+
+  Vector k_array(n_k);
+
+  for (int i = 0; i < n_k; ++i)
+  {
+    k_array[i] = exp(exponents[i]);
+  }
+
+  //Vector k_array{k_max};
 
   Vector delta_cdm(n_x*n_k);
   Vector delta_b(n_x*n_k);
@@ -53,8 +63,7 @@ void Perturbations::integrate_perturbations(){
 
   Vector2D Thetas(Constants.n_ell_theta, Vector(n_x*n_k, 0.0));
 
-  #pragma omp parallel for schedule(dynamic, 4)
-  //#pragma omp parallel for
+  #pragma omp parallel for schedule(dynamic, 8)
   // Loop over all wavenumbers
   for(int ik = 0; ik < n_k; ik++){
 
@@ -135,56 +144,8 @@ void Perturbations::integrate_perturbations(){
       std::copy(y_tight_coupling[ix].begin(), y_tight_coupling[ix].end(), y[ix].begin());
     }
 
-    /*
-    static bool print = true;
-    if (print)
-    {
-      for (int i = 0; i < y_tight_coupling_ini.size(); ++i)
-      {
-        std::cout << y_tight_coupling[0][i] << "\n";
-      }
-    }
-
-    print = false;
-    */
-
     // Inserting the contents of y_full into y
     std::copy(y_full.begin(), y_full.end(), y.begin() + index_end_tight - 1);
-
-    //std::copy(y.begin()[Constants.ind_deltacdm], y.end()[Constants.ind_deltab], delta_cdm.begin() + n_x*ik);
-
-    /*
-    for (int j = 0; j < n_x; ++j)
-    {
-      for (int i = 0; i < Constants.n_ell_tot_full; ++i)
-      {
-        if (j < index_end_tight - 1)
-        {
-          y[j][i] = y_tight_coupling[j][i];
-        }
-
-        y[j][i] = y_full[i - (index_end_tight - 1)][i];
-      }
-    }
-    */
-
-    /*
-    for (int j = 0; j < index_end_tight - 1; ++j)
-    {
-      for (int i = 0; i < Constants.n_ell_tot_tc; ++i)
-      {
-        y[j][i] = y_tight_coupling[j][i];
-      }
-    }
-
-    for (int j = index_end_tight - 1; j < n_x; ++j)
-    {
-      for (int i = 0; i < Constants.n_ell_tot_full; ++i)
-      {
-        y[j][i] = y_full[j - (index_end_tight - 1)][i];
-      }
-    }
-    */
 
     for (int ix = 0; ix < n_x; ++ix)
     {
@@ -202,20 +163,6 @@ void Perturbations::integrate_perturbations(){
       }
     }
 
-    /*
-    std::copy(y[Constants.ind_deltacdm].begin(), y[Constants.ind_deltacdm].end(), delta_cdm.begin() + n_x*ik);
-    std::copy(y[Constants.ind_deltab].begin(), y[Constants.ind_deltab].end(), delta_b.begin() + n_x*ik);
-    std::copy(y[Constants.ind_vcdm].begin(), y[Constants.ind_vcdm].end(), v_cdm.begin() + n_x*ik);
-    std::copy(y[Constants.ind_vb].begin(), y[Constants.ind_vb].end(), v_b.begin() + n_x*ik);
-    std::copy(y[Constants.ind_Phi].begin(), y[Constants.ind_Phi].end(), Phi.begin() + n_x*ik);
-
-    for (int l = 0; l < Constants.n_ell_theta; ++l)
-    {
-      int index_theta = Constants.ind_start_theta + l;
-      std::copy(y[index_theta].begin(), y[index_theta].end(), Thetas[l].begin() + n_x*ik);
-    }
-
-    */
     //===================================================================
     // TODO: remember to store the data found from integrating so we can
     // spline it below
@@ -268,6 +215,9 @@ Vector Perturbations::set_ic(const double x, const double k) const{
 
   const double c = Constants.c;
   const double Hp = cosmo->Hp_of_x(x);
+  const double OmegaNu0 = cosmo->get_OmegaNu(0);
+
+  const double ck_Hp = c*k/Hp;
 
   // The vector we are going to fill
   Vector y_tc(Constants.n_ell_tot_tc);
@@ -313,12 +263,10 @@ Vector Perturbations::set_ic(const double x, const double k) const{
   double *Theta_1 = Theta + 1;
 
   *Theta_0 = -1.0/2.0*Psi;
-  *Theta_1 = c*k/(6*Hp)*Psi;
+  *Theta_1 = ck_Hp/6.0*Psi;
 
   // SET: Neutrino perturbations (N_ell)
   if(neutrinos){
-    // ...
-    // ...
   }
 
   return y_tc;
@@ -410,6 +358,14 @@ Vector Perturbations::set_ic_after_tight_coupling(
     *Theta_l = -l/(2.0*l + 1.0)*ck_Hptau*(*Theta_lmin1);
   }
 
+  /*
+  for (auto x: y)
+  {
+    std::cout << x << "\n";
+  }
+  */
+
+
   // SET: Photon polarization perturbations (Theta_p_ell)
   if(polarization){
     // ...
@@ -418,8 +374,6 @@ Vector Perturbations::set_ic_after_tight_coupling(
 
   // SET: Neutrino perturbations (N_ell)
   if(neutrinos){
-    // ...
-    // ...
   }
 
   return y;
@@ -448,12 +402,12 @@ double Perturbations::get_tight_coupling_time(const double k) const{
     const double dtaudx = rec->dtaudx_of_x(x);
     const double Xe     = rec->Xe_of_x(x);
 
-    if ((abs(dtaudx) < 10.0*c*k/Hp) || (abs(dtaudx) < 10) || (Xe < 1))
+    if ((abs(dtaudx) < 10.0*c*k/Hp) || (abs(dtaudx) < 10) || (Xe < 0.999999))
     {
       x_tight_coupling_end = x;
+      //std::cout << "x_tight = " << x_tight_coupling_end << "\n";
       break;
     }
-
   }
   return x_tight_coupling_end;
 }
@@ -531,6 +485,7 @@ int Perturbations::rhs_tight_coupling_ode(double x, double k, const double *y, d
   const double Omega_gamma0 = cosmo->get_OmegaR(0);
   const double OmegaCDM0    = cosmo->get_OmegaCDM(0);
   const double OmegaB0      = cosmo->get_OmegaB(0);
+
   const double a            = exp(x);
   const double R            = 4.0*Omega_gamma0/(3.0*OmegaB0*a);
 
@@ -576,7 +531,8 @@ int Perturbations::rhs_tight_coupling_ode(double x, double k, const double *y, d
   // SET: Scalar quantities (Phi, delta, v, ...)
   double Psi = -Phi - 12.0*H0*H0/(c*c*k*k*a*a)*Omega_gamma0*(*(Theta + 2));
   dPhidx = Psi - ck_Hp*ck_Hp/3.0*Phi + H0*H0/(2.0*Hp*Hp)*(OmegaCDM0*1.0/a*delta_cdm \
-                                                            + OmegaB0*1.0/a*delta_b + 4*Omega_gamma0*1.0/(a*a)*(*Theta));
+                                                            + OmegaB0*1.0/a*delta_b + \
+                                                            + 4*Omega_gamma0*1.0/(a*a)*(*Theta));
 
   ddelta_cdmdx = ck_Hp*v_cdm - 3*dPhidx;
   ddelta_bdx = ck_Hp*v_b - 3*dPhidx;
@@ -588,8 +544,16 @@ int Perturbations::rhs_tight_coupling_ode(double x, double k, const double *y, d
 
   double dThetadx0 = -ck_Hp*Theta_1 - dPhidx;
 
+  /*
+  // Seems like the position of the first minus sign was causing the issues
   double q = ((-(1.0 - R)*dtaudx + (1.0 + R)*ddtauddx)*(3*Theta_1 + v_b) - ck_Hp*Psi \
               + (1 - dHpdx/Hp)*ck_Hp*(-Theta_0 + 2*Theta_2) - ck_Hp*dThetadx0)/((1.0 + R)*dtaudx + dHpdx/Hp - 1);
+
+  dv_bdx = 1.0/(1.0 + R)*(-v_b - ck_Hp*Psi + R*(q + ck_Hp*(-Theta_0 + 2*Theta_2) - ck_Hp*Psi));
+  */
+
+  double q = (-((1.0 - R)*dtaudx + (1.0 + R)*ddtauddx)*(3*Theta_1 + v_b) - ck_Hp*Psi \
+              + (1.0 - dHpdx/Hp)*ck_Hp*(-Theta_0 + 2*Theta_2) - ck_Hp*dThetadx0)/((1.0 + R)*dtaudx + dHpdx/Hp - 1.0);
 
   dv_bdx = 1.0/(1.0 + R)*(-v_b - ck_Hp*Psi + R*(q + ck_Hp*(-Theta_0 + 2*Theta_2) - ck_Hp*Psi));
 
@@ -632,6 +596,16 @@ int Perturbations::rhs_tight_coupling_ode(double x, double k, const double *y, d
 
 int Perturbations::rhs_full_ode(double x, double k, const double *y, double *dydx){
 
+  /*
+  Look at delta_cdm and delta_b in my plots vs the plots from the project description.
+  The deviation of delta_b from delta_cdm looks correct in the tight coupling regime, but
+  not after recombination (when tight coupling has definitely ended).
+  So looks like the solution of the full system is implemented wrongly.
+
+  All the derivatives of the scalar quantities in the full system seemed to be correct.
+  So there may be some mistake in the multipole derivatives.
+  */
+
   //=============================================================================
   // Compute where in the y / dydx array each component belongs
   // This is just an example of how to do it to make it easier
@@ -652,7 +626,7 @@ int Perturbations::rhs_full_ode(double x, double k, const double *y, double *dyd
   const double &v_b             =  y[Constants.ind_vb];
   const double &Phi             =  y[Constants.ind_Phi];
   const double *Theta           = &y[Constants.ind_start_theta];
-  const double *Theta_p         = &y[Constants.ind_start_thetap];
+  //const double *Theta_p         = &y[Constants.ind_start_thetap];
   //const double *Nu              = &y[Constants.ind_start_nu];
 
   // References to the quantities we are going to set in the dydx array
@@ -662,7 +636,7 @@ int Perturbations::rhs_full_ode(double x, double k, const double *y, double *dyd
   double &dv_bdx          =  dydx[Constants.ind_vb];
   double &dPhidx          =  dydx[Constants.ind_Phi];
   double *dThetadx        = &dydx[Constants.ind_start_theta];
-  double *dTheta_pdx      = &dydx[Constants.ind_start_thetap];
+  //double *dTheta_pdx      = &dydx[Constants.ind_start_thetap];
   //double *dNudx           = &dydx[Constants.ind_start_nu];
 
   // Cosmological/recombination parameters and variables
@@ -675,7 +649,7 @@ int Perturbations::rhs_full_ode(double x, double k, const double *y, double *dyd
   const double Omega_gamma0 = cosmo->get_OmegaR(0);
   const double OmegaB0      = cosmo->get_OmegaB(0);
   const double OmegaCDM0    = cosmo->get_OmegaCDM(0);
-  const double R            = 4.0/3.0/(OmegaB0*a);
+  const double R            = 4.0/(3.0*OmegaB0*a);
 
   const double c = Constants.c;
   const double ck_Hp = c*k/Hp;
@@ -695,17 +669,6 @@ int Perturbations::rhs_full_ode(double x, double k, const double *y, double *dyd
   dPhidx = Psi - 1.0/3.0*ck_Hp*ck_Hp*Phi + 1.0/2.0*(H0*H0/(Hp*Hp))*(OmegaCDM0/a*delta_cdm + OmegaB0/a*delta_b \
                                                                   + 4*Omega_gamma0/(a*a)*(*Theta0));
 
-
-  //std::cout << dPhidx << "\n";
-  /*
-  static bool print = true;
-  if (print)
-  {
-    std::cout << dPhidx << "\n";
-  }
-  print = false;
-  */
-
   ddelta_cdmdx = ck_Hp*v_cdm - 3*dPhidx;
   ddelta_bdx   = ck_Hp*v_b - 3*dPhidx;
 
@@ -721,17 +684,18 @@ int Perturbations::rhs_full_ode(double x, double k, const double *y, double *dyd
 
   for (int l = 2; l < Constants.n_ell_theta; ++l)
   {
-    double *dThetaldx   = dThetadx + l;
+    double *dThetaldx         = dThetadx + l;
     const double *Thetal      = Theta + l;
     const double *Thetalmin1  = Theta + (l - 1);
-    const double *Thetalplus1 = Theta + (l + 1);
 
-    if (l == Constants.n_ell_theta)
+    if (l == Constants.n_ell_theta - 1)
     {
       *dThetaldx = ck_Hp*(*Thetalmin1) - c/(Hp*eta)*(l + 1.0)*(*Thetal) + dtaudx*(*Thetal);
     }
     else
     {
+      const double *Thetalplus1 = Theta + (l + 1);
+
       *dThetaldx = l*ck_Hp/(2.0*l + 1.0)*(*Thetalmin1) - (l + 1.0)/(2.0*l + 1.0)*ck_Hp*(*Thetalplus1) + \
                  + dtaudx*(*Thetal);
 
@@ -739,6 +703,7 @@ int Perturbations::rhs_full_ode(double x, double k, const double *y, double *dyd
       {
         *dThetaldx -= dtaudx/10.0*(*Theta2);
       }
+
     }
   }
 
