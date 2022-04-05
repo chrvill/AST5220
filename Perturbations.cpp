@@ -642,7 +642,7 @@ int Perturbations::rhs_full_ode(double x, double k, const double *y, double *dyd
   const double Omega_gamma0 = cosmo->get_OmegaR(0);
   const double OmegaB0      = cosmo->get_OmegaB(0);
   const double OmegaCDM0    = cosmo->get_OmegaCDM(0);
-  const double R            = 4.0/(3.0*OmegaB0*a);
+  const double R            = 4.0*Omega_gamma0/(3.0*OmegaB0*a);
 
   const double c = Constants.c;
   const double ck_Hp = c*k/Hp;
