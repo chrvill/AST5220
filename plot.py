@@ -2,6 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.optimize as sp
 
+txt_prefix = "txtfiles/"
+
 Mpc = 3.08567758e22 # Mpc in m
 Gyr = 1e9*3600*24*365 # Gyr in s
 c = 3e8 # Speed of light in m/s
@@ -40,7 +42,7 @@ class Plotter:
         self.x = np.array(x)
 
     def plot(self, quantities, imageName, ylabel, xlabel = r"$x$", legends = [], logscale = False,
-                   xlims = [], ylims = [], grid = False, savefig = True, dashed = []):
+                   xlims = [], ylims = [], grid = False, savefig = True, dashed = [], colors = []):
         """
         A general function used for plotting. Can be supplied with given quantities and
         plots the quantities against x.
@@ -57,7 +59,8 @@ class Plotter:
 
         fig, ax = plt.subplots()
 
-        colors = ["b", "g", "r"]
+        if len(colors) == 0:
+            colors = ["b", "g", "r"]
 
         # ymin and ymax will just be the minimum and maximum y-values to include in the plot
 
@@ -120,7 +123,7 @@ class Plotter:
 
 class BackgroundCosmology(Plotter):
     def __init__(self, data_file):
-        self.data = np.loadtxt(data_file)
+        self.data = np.loadtxt(txt_prefix + data_file)
         x, self.eta, self.Hp, self.t, self.dHpdx, self.ddHpddx = np.transpose(self.data[:, :6])
 
         Plotter.__init__(self, x)
@@ -160,7 +163,7 @@ class BackgroundCosmology(Plotter):
 
 class Recombination(Plotter):
     def __init__(self, data_file, cosmo):
-        self.data = np.loadtxt(data_file)
+        self.data = np.loadtxt(txt_prefix + data_file)
         self.cosmo = cosmo
         x, self.Xe, self.ne, self.tau, self.dtaudx, self.ddtauddx, self.g, self.dgdx, self.ddgddx = np.transpose(self.data)
 
@@ -202,6 +205,7 @@ def printEvents(event_names, z, x, t):
 
     print("\n")
 
+"""
 cosmo = BackgroundCosmology("cosmology.txt")
 
 # Plotting the omegas against x
@@ -233,11 +237,12 @@ cosmo.plot(cosmo.eta*cosmo.Hp/c, "eta(x)Hp(x)", r"$\frac{\eta(x)\mathcal{H}(x)}{
 
 # Plotting t(x)
 cosmo.plot(cosmo.t/Gyr, "t(x)", r"$t(x)$ (Gyr)", logscale = True, xlims = [-15, 5], ylims = [1e-10, 5e2])
+"""
 
 """
 Reading in and plotting the supernova-data
 """
-
+"""
 sn_data = np.loadtxt("sn_data.txt", skiprows = 1)
 
 # Redshifts and lum. distances from data
@@ -289,6 +294,7 @@ t_events = [cosmo.t_m_r_eq, cosmo.t_m_lambda_eq, cosmo.t_acc_begin, rec.t_decoup
 
 printEvents(event_names, z_events, x_events, t_events)
 
+"""
 def saha_fixed_Xe(x):
     """
     Takes the LHS of the Saha eq. minus the RHS for a given x = log(a).
@@ -302,6 +308,7 @@ def saha_fixed_Xe(x):
 
     return C*np.exp(x)**(3/2)*np.exp(-b*np.exp(x)) - LHS
 
+"""
 # Finds solution to Saha eq. for Xe = 0.5
 root = sp.root_scalar(saha_fixed_Xe, x0 = -7.2, x1 = -7.25).root
 print("Saha approx.: Recombination at {:.2f}".format(root))
@@ -314,37 +321,70 @@ print("Recombination temperature: {:.2f} eV".format(recomb_temp*k_B/eV))
 fig, ax = plt.subplots()
 ax.plot(cosmo.t/Gyr, np.exp(cosmo.x)*cosmo.eta/(1e3*Mpc))
 fig.savefig("images/test.pdf")
+"""
 
-k = 1.62e-27
-Hp = 1.61e-12
-a = 1e-8
+class Perturbations(Plotter):
+    def __init__(self, data_file):
+        self.data = np.loadtxt(txt_prefix + data_file)
+        x, self.delta_cdm, self.delta_b, self.v_cdm, self.v_b, \
+           self.theta0, self.theta1, self.theta2, self.Phi, self.Psi = np.transpose(self.data)
 
-omega_b0    = 0.05
-omega_cdm0  = 0.267
-omega_r0    = 5.51e-5
-H0 = 2.17e-18
-dtaudx = -2.72e7
+        Plotter.__init__(self, x)
 
-psi = -2/3
-phi = -psi
-delta_cdm = -3/2*psi
-delta_b = delta_cdm
-v_cdm = c*k/(2*Hp)*psi
-v_b = v_cdm
+        self.k = float(data_file.replace("perturbations_k", "").replace(".txt", ""))
+        self.legend = r"$k = {}$/Mpc".format(self.k)
 
-theta0 = -1/2*psi
-theta_1 = c*k/(6*Hp)*psi
+        self.vlines_x = []
+        self.vline_text = []
 
-print(delta_cdm)
-print(delta_b)
-print(theta0)
+"""
+data = np.loadtxt("perturbations_k0.100000.txt")
+x = data[:, 0]
+delta_cdm = data[:, 1]
+delta_b = data[:, 2]
 
-print(v_cdm)
-print(v_b)
+theta0 = data[:, 5]
+phi = data[:, -1]
 
-#dphidx = psi - c**2*k**2/(3*Hp**2)*phi + H0**2/(2*Hp**2)*(omega_cdm0/a*delta_cdm + omega_b0/a*delta_b + 4*omega_r0/(a**2)*theta0)
-dphidx = psi - 1/3*(c*k/Hp)**2*phi + 1/2*(H0/Hp)**2*(omega_cdm0/a*delta_cdm + omega_b0/a*delta_b + 4*omega_r0/(a**2)*theta0)
+fig, ax = plt.subplots()
+#ax.plot(x, phi, "b-")
+ax.plot(x, theta0, "b-")
+#ax.plot(x, delta_cdm, "b-")
+#ax.plot(x, delta_b, "b--")
+#ax.set_yscale("log")
+fig.savefig("images/pert_k0.01.pdf", bbox_inches = "tight")
+"""
+pert1 = Perturbations("perturbations_k0.067000.txt")
+pert2 = Perturbations("perturbations_k0.006700.txt")
+pert3 = Perturbations("perturbations_k0.000670.txt")
 
-print(dphidx)
+"""
+pert1 = Perturbations("perturbations_k0.100000.txt")
+pert2 = Perturbations("perturbations_k0.010000.txt")
+pert3 = Perturbations("perturbations_k0.001000.txt")
+"""
+pert1.plot([pert1.delta_cdm, pert2.delta_cdm, pert3.delta_cdm,
+            np.abs(pert1.delta_b), np.abs(pert2.delta_b), (pert3.delta_b)],
+           "pert_deltas", r"$\delta_\mathrm{CDM}, \delta_b$",
+           legends = [pert1.legend, pert2.legend, pert3.legend, "", "", ""],
+           logscale = True, dashed = [False, False, False, True, True, True],
+           colors = ["b", "g", "r", "b", "g", "r"])
 
-ddelta_cdmdx = c*k/Hp*v_cdm - 3*dphidx
+pert1.plot([pert1.v_cdm, pert2.v_cdm, pert3.v_cdm,
+            np.abs(pert1.v_b), np.abs(pert2.v_b), (pert3.v_b)],
+           "pert_v", r"$v_\mathrm{CDM}, v_b$",
+           legends = [pert1.legend, pert2.legend, pert3.legend, "", "", ""],
+           logscale = True, dashed = [False, False, False, True, True, True],
+           colors = ["b", "g", "r", "b", "g", "r"])
+
+pert1.plot([pert1.Phi, pert2.Phi, pert3.Phi], "pert_phi", r"$\mathrm{\Phi}$",
+            legends = [pert1.legend, pert2.legend, pert3.legend])
+
+pert1.plot([pert1.Psi, pert2.Psi, pert3.Psi], "pert_psi", r"$\mathrm{\Psi}$",
+            legends = [pert1.legend, pert2.legend, pert3.legend])
+
+pert1.plot([pert1.theta0, pert2.theta0, pert3.theta0], "pert_theta0", r"$\Theta_0$",
+           legends = [pert1.legend, pert2.legend, pert3.legend])
+
+pert1.plot([pert1.theta1, pert2.theta1, pert3.theta1], "pert_theta1", r"$\Theta_1$",
+           legends = [pert1.legend, pert2.legend, pert3.legend])
