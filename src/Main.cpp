@@ -6,7 +6,7 @@
 int main(int argc, char **argv){
   Utils::StartTiming("Everything");
 
-  std::string txt_prefix = "../txtfiles/";
+  std::string txt_prefix = "txtfiles/";
 
   //=========================================================================
   // Parameters
@@ -21,7 +21,6 @@ int main(int argc, char **argv){
   double TCMB        = 2.7255;
 
   double Yp          = 0.245;
-  //double Yp          = 0.0;
 
   //=========================================================================
   // Module I
@@ -80,7 +79,8 @@ int main(int argc, char **argv){
   Vector kvalues{0.1/Constants.Mpc, 0.01/Constants.Mpc, 0.001/Constants.Mpc,
                  0.1*h/Constants.Mpc, 0.01*h/Constants.Mpc, 0.001*h/Constants.Mpc};
 
-  pert.integrate_perturbations();
+  //pert.integrate_perturbations();
+  pert.solve();
 
   for (int i = 0; i < kvalues.size(); ++i)
   {
