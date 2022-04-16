@@ -34,10 +34,10 @@ class RecombinationHistory{
     //===============================================================
 
     // Compute Xe from the Saha equation
-    std::pair<double,double> electron_fraction_from_saha_equation(double x) const;
+    double electron_fraction_from_saha_equation(double x) const;
 
     // Compute Xe from the Saha equation, but here with helium included
-    std::pair<double,double> electron_fraction_from_saha_equation_with_He(double x) const;
+    double electron_fraction_from_saha_equation_with_He(double x) const;
 
     // Right hand side of the dXedx Peebles equation
     int rhs_peebles_ode(double x, const double *y, double *dydx);

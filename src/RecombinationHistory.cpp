@@ -34,28 +34,22 @@ void RecombinationHistory::solve_number_density_electrons(){
   // Initializing arrays storing the x-, Xe- and ne-values
   Vector x_array = Utils::linspace(x_start, x_end, npts_rec_arrays);
   Vector Xe_arr  = Utils::linspace(x_start, x_end, npts_rec_arrays);
-  Vector ne_arr  = Utils::linspace(x_start, x_end, npts_rec_arrays);
 
   // Calculate recombination history
   bool saha_regime = true;
   for(int i = 0; i < npts_rec_arrays; i++){
 
     // Calculating electron fraction from Saha equation. Can be changed to
-    //auto Xe_ne_data = electron_fraction_from_saha_equation(x_array[i]);
-    auto Xe_ne_data = electron_fraction_from_saha_equation_with_He(x_array[i]);
-
-    // Electron fraction and number density
-    const double Xe_current = Xe_ne_data.first;
-    const double ne_current = Xe_ne_data.second;
+    //double Xe_current = electron_fraction_from_saha_equation(x_array[i]);
+    double Xe_current = electron_fraction_from_saha_equation_with_He(x_array[i]);
 
     // Are we still in the Saha regime?
     if(Xe_current < Xe_saha_limit)
       saha_regime = false;
 
-    // Saving the current values of Xe and ne if Saha approx. valid
+    // Saving the current values of Xe if Saha approx. valid
     if(saha_regime){
       Xe_arr[i] = Xe_current;
-      ne_arr[i] = ne_current;
 
     // If Saha approx. not valid, use Peebles' eq.
     } else {
@@ -93,7 +87,7 @@ void RecombinationHistory::solve_number_density_electrons(){
 //====================================================
 // Solve the Saha equation to get ne and Xe
 //====================================================
-std::pair<double,double> RecombinationHistory::electron_fraction_from_saha_equation(double x) const{
+double RecombinationHistory::electron_fraction_from_saha_equation(double x) const{
   const double a           = exp(x);
 
   // Physical constants
@@ -124,12 +118,13 @@ std::pair<double,double> RecombinationHistory::electron_fraction_from_saha_equat
   // much more stable (found that out the hard way)
   // than the standard quadratic formula, which jumps around 1 (both above and below)
   Xe = 1.0/(1.0 + 1.0/C);
-  ne = Xe*n_b;
+  //ne = Xe*n_b;
 
-  return std::pair<double,double>(Xe, ne);
+  //return std::pair<double,double>(Xe, ne);
+  return Xe;
 }
 
-std::pair<double,double> RecombinationHistory::electron_fraction_from_saha_equation_with_He(double x) const{
+double RecombinationHistory::electron_fraction_from_saha_equation_with_He(double x) const{
   const double a           = exp(x);
 
   // Physical constants
@@ -186,7 +181,8 @@ std::pair<double,double> RecombinationHistory::electron_fraction_from_saha_equat
   // The final value of Xe after converging on an accurate value for f_e.
   Xe = f_e/(1 - Yp);
 
-  return std::pair<double,double>(Xe, ne);
+  //return std::pair<double,double>(Xe, ne);
+  return Xe;
 }
 
 //====================================================
