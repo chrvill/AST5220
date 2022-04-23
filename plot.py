@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import scipy.optimize as sp
+from scipy import optimize, interpolate
 
 txt_prefix = "txtfiles/"
 
@@ -15,6 +15,7 @@ G = 6.67e-11 # Newton's gravitational constant
 eV = 1.6e-19
 
 H0 = 2.2e-18 # Hubble parameter today
+h  = H0/(100e3*Mpc**(-1)) # Dimensionless Hubble parameter today
 TCMB0 = 2.7255 # Temperature of CMB today
 omega_B0 = 0.05 # Density parameter of baryons today
 rho_crit_0 = 3*H0**2/(8*np.pi*G) # Critical density today
@@ -60,7 +61,7 @@ class Plotter:
         fig, ax = plt.subplots()
 
         if len(colors) == 0:
-            colors = ["b", "g", "r"]
+            colors = ["b", "g", "r", "c"]
 
         # ymin and ymax will just be the minimum and maximum y-values to include in the plot
 
@@ -169,13 +170,13 @@ class Recombination(Plotter):
 
         Plotter.__init__(self, x)
 
-        self.decoupling_index = np.argmin(np.abs(self.tau - 1))
-        self.x_decoupling = self.x[self.decoupling_index]
+        tau_func = interpolate.interp1d(self.x, self.tau - 1)
+        self.x_decoupling = optimize.root_scalar(tau_func, bracket = [-7.5, -6.5]).root
         self.z_decoupling = x_to_z(self.x_decoupling)
         self.t_decoupling = self.cosmo.x_to_t(self.x_decoupling)/Gyr
 
-        self.recomb_index = np.argmin(np.abs(self.Xe - 0.5))
-        self.x_recomb = self.x[self.recomb_index]
+        Xe_func = interpolate.interp1d(self.x, self.Xe - 0.5)
+        self.x_recomb = optimize.root_scalar(Xe_func, bracket = [-7.5, -6.5]).root
         self.z_recomb = x_to_z(self.x_recomb)
         self.t_recomb = self.cosmo.x_to_t(self.x_recomb)/Gyr
 
@@ -205,9 +206,9 @@ def printEvents(event_names, z, x, t):
 
     print("\n")
 
-"""
 cosmo = BackgroundCosmology("cosmology.txt")
 
+"""
 # Plotting the omegas against x
 cosmo.plot([cosmo.Omega_r, cosmo.Omega_m, cosmo.OmegaLambda], "omegas", r"$\Omega_i(x)$",
             legends = [r"$\Omega_r$", r"$\Omega_m$", r"$\Omega_\Lambda$"],
@@ -268,23 +269,33 @@ ax.tick_params(axis = "both", labelsize = fontsize)
 
 fig.savefig("images/Supernova distances.pdf", bbox_inches = "tight")
 
+"""
 
 rec = Recombination("recombination.txt", cosmo)
-fig, ax = rec.plot(rec.Xe, "Xe(x)", r"$X_e$", xlims = [-12, 0], legends = [r"$X_e$"], grid = True, savefig = False)
-ax.text(-10, 1, r"He$^+$ forms")
-ax.text(-10, 0.9, r"He forms")
-ax.text(-10, 0.8, r"H forms")
+rec_no_He = Recombination("recombination_without_He.txt", cosmo)
 
-fig.savefig("Xe(x)", bbox_inches = "tight")
 
+fig, ax = rec.plot(rec.Xe, "Xe(x)", r"$X_e$", xlims = [-12, 0], grid = True, savefig = False)
+ax.plot(rec_no_He.x, rec_no_He.Xe, "r--")
+
+ax.legend(["Decoup.", "Recomb.", "With He", "Without He"])
+ax.set_xlim(-10, -3)
+ax.set_yscale("log")
+
+fig.savefig("images/Xe(x).pdf", bbox_inches = "tight")
+
+"""
 rec.plot([rec.tau, -rec.dtaudx, rec.ddtauddx], "tau(x)", r"$\tau$", logscale = True,
           legends = [r"$\tau(x)$", r"$-\tau'(x)$", r"$\tau''(x)$"], xlims = [-12, 0], ylims = [1e-8, 1e7])
+"""
 
 rec.plot([rec.g, rec.dgdx/10, rec.ddgddx/200], "g(x)", r"$\tilde{g}$", legends = [r"$\tilde{g}$", r"$\tilde{g}'$"
-                                      , r"$\tilde{g}''$"], xlims = [-8, -6], dashed = [False, True, True])
+                                      , r"$\tilde{g}''$"], xlims = [-7.5, -6.2], dashed = [False, True, True])
 
+"""
 rec.plot([rec.g, rec.dgdx/10, rec.ddgddx/200], "g(x)_zoomed_out", r"$\tilde{g}$", legends = [r"$\tilde{g}$", r"$\tilde{g}'$"
                                       , r"$\tilde{g}''$"], xlims = [-12, 0], dashed = [False, True, True])
+"""
 
 # Defining arrays containing the names, redshifts etc for the different events of interest
 event_names = ["Matter-rad. eq.", "Matter-Lambda eq.", "Acc. begin", "Decoupling", "Recombination"]
@@ -294,7 +305,12 @@ t_events = [cosmo.t_m_r_eq, cosmo.t_m_lambda_eq, cosmo.t_acc_begin, rec.t_decoup
 
 printEvents(event_names, z_events, x_events, t_events)
 
-"""
+z_no_He = [rec_no_He.z_decoupling, rec_no_He.z_recomb]
+x_no_He = [rec_no_He.x_decoupling, rec_no_He.x_recomb]
+t_no_He = [rec_no_He.t_decoupling, rec_no_He.t_recomb]
+
+printEvents(event_names[3:], z_no_He, x_no_He, t_no_He)
+
 def saha_fixed_Xe(x):
     """
     Takes the LHS of the Saha eq. minus the RHS for a given x = log(a).
@@ -310,7 +326,7 @@ def saha_fixed_Xe(x):
 
 """
 # Finds solution to Saha eq. for Xe = 0.5
-root = sp.root_scalar(saha_fixed_Xe, x0 = -7.2, x1 = -7.25).root
+root = optimize.root_scalar(saha_fixed_Xe, x0 = -7.2, x1 = -7.25).root
 print("Saha approx.: Recombination at {:.2f}".format(root))
 
 print("Freeze-out abundance: Xe(x = 0) = {:.2e}".format(rec.Xe[-1]))
@@ -324,18 +340,26 @@ fig.savefig("images/test.pdf")
 """
 
 class Perturbations(Plotter):
-    def __init__(self, data_file):
+    def __init__(self, data_file, rec, cosmo):
         self.data = np.loadtxt(txt_prefix + data_file)
         x, self.delta_cdm, self.delta_b, self.v_cdm, self.v_b, \
            self.theta0, self.theta1, self.theta2, self.Phi, self.Psi = np.transpose(self.data)
+
+        self.rec = rec
+        self.cosmo = cosmo
 
         Plotter.__init__(self, x)
 
         self.k = float(data_file.replace("perturbations_k", "").replace(".txt", ""))
         self.legend = r"$k = {}$/Mpc".format(self.k)
+        """
+        '{:g}'.format(float('{:.1g}'.format(i)))
+        """
 
-        self.vlines_x = []
-        self.vline_text = []
+        #self.vlines_x = [self.rec.x_recomb, self.cosmo.x_m_r_eq]
+        #self.vline_text = ["Recombination", "Matter-rad. eq."]
+        self.vlines_x = [self.rec.x_decoupling, self.cosmo.x_m_r_eq]
+        self.vline_text = ["Decoupling", "Matter-rad. eq."]
 
 """
 data = np.loadtxt("perturbations_k0.100000.txt")
@@ -354,37 +378,37 @@ ax.plot(x, theta0, "b-")
 #ax.set_yscale("log")
 fig.savefig("images/pert_k0.01.pdf", bbox_inches = "tight")
 """
-pert1 = Perturbations("perturbations_k0.067000.txt")
-pert2 = Perturbations("perturbations_k0.006700.txt")
-pert3 = Perturbations("perturbations_k0.000670.txt")
 
-"""
-pert1 = Perturbations("perturbations_k0.100000.txt")
-pert2 = Perturbations("perturbations_k0.010000.txt")
-pert3 = Perturbations("perturbations_k0.001000.txt")
-"""
+pert1 = Perturbations("perturbations_k0.300000.txt", rec, cosmo)
+pert2 = Perturbations("perturbations_k0.050000.txt", rec, cosmo)
+pert3 = Perturbations("perturbations_k0.000100.txt", rec, cosmo)
+
 pert1.plot([pert1.delta_cdm, pert2.delta_cdm, pert3.delta_cdm,
-            np.abs(pert1.delta_b), np.abs(pert2.delta_b), (pert3.delta_b)],
+            np.abs(pert1.delta_b), np.abs(pert2.delta_b), np.abs(pert3.delta_b)],
            "pert_deltas", r"$\delta_\mathrm{CDM}, \delta_b$",
            legends = [pert1.legend, pert2.legend, pert3.legend, "", "", ""],
            logscale = True, dashed = [False, False, False, True, True, True],
-           colors = ["b", "g", "r", "b", "g", "r"])
+           colors = ["b", "r", "g", "b", "r", "g"])
 
 pert1.plot([pert1.v_cdm, pert2.v_cdm, pert3.v_cdm,
-            np.abs(pert1.v_b), np.abs(pert2.v_b), (pert3.v_b)],
+            np.abs(pert1.v_b), np.abs(pert2.v_b), np.abs(pert3.v_b)],
            "pert_v", r"$v_\mathrm{CDM}, v_b$",
            legends = [pert1.legend, pert2.legend, pert3.legend, "", "", ""],
            logscale = True, dashed = [False, False, False, True, True, True],
-           colors = ["b", "g", "r", "b", "g", "r"])
+           colors = ["b", "r", "g", "b", "r", "g"])
 
 pert1.plot([pert1.Phi, pert2.Phi, pert3.Phi], "pert_phi", r"$\mathrm{\Phi}$",
-            legends = [pert1.legend, pert2.legend, pert3.legend])
+            legends = [pert1.legend, pert2.legend, pert3.legend],
+            colors = ["b", "r", "g", "b", "r", "g"])
 
 pert1.plot([pert1.Psi, pert2.Psi, pert3.Psi], "pert_psi", r"$\mathrm{\Psi}$",
-            legends = [pert1.legend, pert2.legend, pert3.legend])
+            legends = [pert1.legend, pert2.legend, pert3.legend],
+            colors = ["b", "r", "g", "b", "r", "g"])
 
 pert1.plot([pert1.theta0, pert2.theta0, pert3.theta0], "pert_theta0", r"$\Theta_0$",
-           legends = [pert1.legend, pert2.legend, pert3.legend])
+           legends = [pert1.legend, pert2.legend, pert3.legend],
+           colors = ["b", "r", "g", "b", "r", "g"])
 
 pert1.plot([pert1.theta1, pert2.theta1, pert3.theta1], "pert_theta1", r"$\Theta_1$",
-           legends = [pert1.legend, pert2.legend, pert3.legend])
+           legends = [pert1.legend, pert2.legend, pert3.legend],
+           colors = ["b", "r", "g", "b", "r", "g"])

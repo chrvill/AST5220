@@ -72,16 +72,14 @@ int main(int argc, char **argv){
 
   // Solve the perturbations
   Perturbations pert(&cosmo, &rec);
-  //pert.solve();
   pert.info();
 
-  // Output perturbation quantities
-  Vector kvalues{0.1/Constants.Mpc, 0.01/Constants.Mpc, 0.001/Constants.Mpc,
-                 0.1*h/Constants.Mpc, 0.01*h/Constants.Mpc, 0.001*h/Constants.Mpc};
+  Vector kvalues{0.3/Constants.Mpc, 0.05/Constants.Mpc, 0.0001/Constants.Mpc};
 
-  //pert.integrate_perturbations();
   pert.solve();
 
+  // Computing evolution of perturbations for the different values of k
+  // in the kvalues-vector
   for (int i = 0; i < kvalues.size(); ++i)
   {
     double k = kvalues[i];
@@ -91,7 +89,6 @@ int main(int argc, char **argv){
 
 
   Utils::EndTiming("Everything");
-  // Remove when module is completed
   return 0;
 
 }
