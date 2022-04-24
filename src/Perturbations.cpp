@@ -10,6 +10,7 @@ Perturbations::Perturbations(
   cosmo(cosmo),
   rec(rec)
 {
+  // Vectors containing splines for the photon, neutrino and polarization multipoles
   Theta_spline   = std::vector<Spline2D>(Constants.n_ell_theta);
   Nu_spline      = std::vector<Spline2D>(Constants.n_ell_neutrinos);
   Theta_p_spline = std::vector<Spline2D>(Constants.n_ell_thetap);
@@ -26,7 +27,7 @@ Perturbations::Perturbations(
 
 void Perturbations::solve(){
 
-  // Integrate all the perturbation equation and spline the result
+  // Integrate all the perturbation equations and spline the result
   integrate_perturbations();
 
   // Compute source functions and spline the result
@@ -54,7 +55,7 @@ void Perturbations::integrate_perturbations(){
     k_array[i] = exp(exponents[i]);
   }
 
-  // Initializing the perturbations arrays
+  // Initializing the vectors containing the values for all the perturbation variables
   Vector delta_cdm(n_x*n_k);
   Vector delta_b(n_x*n_k);
   Vector v_cdm(n_x*n_k);
@@ -66,7 +67,7 @@ void Perturbations::integrate_perturbations(){
   Vector2D Nu(Constants.n_ell_neutrinos, Vector(n_x*n_k, 0.0));
   Vector2D Theta_p(Constants.n_ell_thetap, Vector(n_x*n_k, 0.0));
 
-  // Array for storing the indices of x_array at which tight coupling ends for the
+  // Vector for storing the indices of x_array at which tight coupling ends for the
   // different k-values
   Vector indices_end_tight(n_k);
 
@@ -110,8 +111,7 @@ void Perturbations::integrate_perturbations(){
 
     // Vector containing x-values for the full system
     Vector x_after_tight;
-    // The minus 1 is because the initial conditions for the full system are the last values in y_tight_coupling,
-    // and the last values in y_tight_coupling corresponds to x = x_array.begin() + index_end_tight - 1.
+    // Initial conditions for full system are at x = x_array.begin() + index_end_tight - 1
     x_after_tight = Vector(x_array.begin() + index_end_tight - 1, x_array.end());
 
     // Set up initial conditions for full system
@@ -128,94 +128,40 @@ void Perturbations::integrate_perturbations(){
     auto y_full = full_ode.get_data();
 
     //=======================================================================================
-    // Inserting the contents of the y-arrays during tight coupling and after tight coupling
-    // into y
+    // Inserting the computed perturbation variables into their respective vectors,
+    // and calculating the values for the higher order multipoles that were not
+    // computed during tight coupling.
     //=======================================================================================
 
-    // Inserting the contents of y_tight_coupling into y.
-    // This was the best way I found to insert the tight-coupling
-    // variables while still keeping the zeros corresponding to the higher order
-    // multipoles of the photons
-    for (int ix = 0; ix < index_end_tight - 1; ++ix)
-    {
-      std::copy(y_tight_coupling[ix].begin(), y_tight_coupling[ix].end(), y[ix].begin());
-    }
-
-    // Inserting the contents of y_full into y
-    std::copy(y_full.begin(), y_full.end(), y.begin() + index_end_tight - 1);
-
-    // Storing the values for the perturbation variables in their respective arrays
-    for (int ix = 0; ix < n_x; ++ix)
-    {
-      // The perturbation arrays need to be 1d for the splining, so the index for a
-      // given ix and ik is as follows
-      int index = ix + n_x*ik;
-
-      delta_cdm[index] = y[ix][Constants.ind_deltacdm];
-      delta_b[index]   = y[ix][Constants.ind_deltab];
-      v_cdm[index]     = y[ix][Constants.ind_vcdm];
-      v_b[index]       = y[ix][Constants.ind_vb];
-      Phi[index]       = y[ix][Constants.ind_Phi];
-
-      for (int l = 0; l < Constants.n_ell_theta; ++l)
-      {
-        Thetas[l][index] = y[ix][Constants.ind_start_theta + l];
-      }
-
-      // Storing neutrino perturbations if they are included
-      if (Constants.neutrinos)
-      {
-        for (int l = 0; l < Constants.n_ell_neutrinos; ++l)
-        {
-          Nu[l][index] = y[ix][Constants.ind_start_nu + l];
-        }
-      }
-
-      // Storing polarization perturbations if they are included
-      for (int l = 0; l < Constants.n_ell_thetap; ++l)
-      {
-        Theta_p[l][index] = y[ix][Constants.ind_start_thetap + l];
-      }
-    }
-
-  }
-  Utils::EndTiming("integrateperturbation");
-
-  //=========================================================================================
-  // Creating splines. First for the variables for which we have the complete time-evolutions
-  // (meaning everything except the higher order multipoles)
-  //=========================================================================================
-  delta_cdm_spline.create(x_array, k_array, delta_cdm);
-  delta_b_spline.create(x_array, k_array, delta_b);
-  v_cdm_spline.create(x_array, k_array, v_cdm);
-  v_b_spline.create(x_array, k_array, v_b);
-  Phi_spline.create(x_array, k_array, Phi);
-
-  // Constants used to calculate higher order multipoles and Psi
-  const double H0           = cosmo->H_of_x(0);
-  const double Omega_gamma0 = cosmo->get_OmegaR(0);
-  const double Omega_nu0    = cosmo->get_OmegaNu(0);
-  const double c            = Constants.c;
-
-  // Calculating the photon multipoles for l >= 2 and the polarization
-  // multipoles in the tight coupling regime.
-  for (int ik = 0; ik < n_k; ++ik)
-  {
-    const double k = k_array[ik];
-    int index_end_tight = indices_end_tight[ik];
+    // Constants used to calculate higher order multipoles and Psi
+    const double H0           = cosmo->H_of_x(0);
+    const double Omega_gamma0 = cosmo->get_OmegaR(0);
+    const double Omega_nu0    = cosmo->get_OmegaNu(0);
+    const double c            = Constants.c;
 
     for (int ix = 0; ix < n_x; ++ix)
     {
-      int index = ix + n_x*ik;
+      const int index = ix + n_x*ik;
+
       const double x = x_array[ix];
+      const double a = exp(x);
 
-      const double Hp     = cosmo->Hp_of_x(x);
-      const double dtaudx = rec->dtaudx_of_x(x);
-      const double ck_Hp  = c*k/Hp;
-
-      // For x-values in the tight coupling regime
+      // During tight coupling we have not computed higher order multipoles, so need to do that here
+      // Also store all the variables that have been computed
       if (ix < index_end_tight - 1)
       {
+        delta_cdm[index] = y_tight_coupling[ix][Constants.ind_deltacdm];
+        delta_b[index]   = y_tight_coupling[ix][Constants.ind_deltab];
+        v_cdm[index]     = y_tight_coupling[ix][Constants.ind_vcdm];
+        v_b[index]       = y_tight_coupling[ix][Constants.ind_vb];
+        Phi[index]       = y_tight_coupling[ix][Constants.ind_Phi];
+        Thetas[0][index] = y_tight_coupling[ix][Constants.ind_start_theta_tc];
+        Thetas[1][index] = y_tight_coupling[ix][Constants.ind_start_theta_tc + 1];
+
+        // Needed for the calculation of the higher order multipoles
+        const double Hp     = cosmo->Hp_of_x(x);
+        const double dtaudx = rec->dtaudx_of_x(x);
+        const double ck_Hp  = c*k/Hp;
 
         // Different formulas for Theta_2 depending on if we include polarization
         if (Constants.polarization)
@@ -230,7 +176,7 @@ void Perturbations::integrate_perturbations(){
         for (int l = 3; l < Constants.n_ell_theta; ++l)
         {
 
-          Thetas[l][index] = -l/(2.0*l + 1.0*c*k/(Hp*dtaudx))*Thetas[l - 1][index];
+          Thetas[l][index] = -l/(2.0*l + 1.0)*ck_Hp/dtaudx*Thetas[l - 1][index];
         }
 
         // We don't calculate any polarization multipoles during tight coupling,
@@ -247,8 +193,68 @@ void Perturbations::integrate_perturbations(){
           }
         }
       }
+      // After tight coupling:
+      else
+      {
+        // For indexing y_full
+        const int full_ix = ix - (index_end_tight - 1);
+
+        delta_cdm[index] = y_full[full_ix][Constants.ind_deltacdm];
+        delta_b[index]   = y_full[full_ix][Constants.ind_deltab];
+        v_cdm[index]     = y_full[full_ix][Constants.ind_vcdm];
+        v_b[index]       = y_full[full_ix][Constants.ind_vb];
+        Phi[index]       = y_full[full_ix][Constants.ind_Phi];
+
+        // Temperature multipoles
+        for (int l = 0; l < Constants.n_ell_theta; ++l)
+        {
+          Thetas[l][index] = y_full[full_ix][Constants.ind_start_theta + l];
+        }
+
+        // Storing neutrino perturbations if they are included
+        if (Constants.neutrinos)
+        {
+          for (int l = 0; l < Constants.n_ell_neutrinos; ++l)
+          {
+            Nu[l][index] = y_full[full_ix][Constants.ind_start_nu + l];
+          }
+        }
+
+        // Storing polarization perturbations if they are included
+        if (Constants.polarization)
+        {
+          for (int l = 0; l < Constants.n_ell_thetap; ++l)
+          {
+            Theta_p[l][index] = y_full[full_ix][Constants.ind_start_thetap + l];
+          }
+        }
+      }
+
+      // Calculating and storing Psi
+      if (Constants.neutrinos)
+      {
+        Psi[index] = -Phi[index] - 12.0*H0*H0/(c*c*k*k*a*a)*(Omega_gamma0*Thetas[2][index] \
+                                                           + Omega_nu0*Nu[2][index]);
+      }
+      else
+      {
+        Psi[index] = -Phi[index] - 12.0*H0*H0/(c*c*k*k*a*a)*Omega_gamma0*Thetas[2][index];
+      }
     }
   }
+
+  Utils::EndTiming("integrateperturbation");
+
+  //=========================================================================================
+  // Creating splines. First for the variables for which we have the complete time-evolutions
+  // (meaning everything except the higher order multipoles)
+  //=========================================================================================
+  delta_cdm_spline.create(x_array, k_array, delta_cdm);
+  delta_b_spline.create(x_array, k_array, delta_b);
+  v_cdm_spline.create(x_array, k_array, v_cdm);
+  v_b_spline.create(x_array, k_array, v_b);
+  Phi_spline.create(x_array, k_array, Phi);
+  Psi_spline.create(x_array, k_array, Psi);
 
   // Creating splines for photon multipoles and polarization and neutrino multipoles (if included)
 
@@ -275,32 +281,6 @@ void Perturbations::integrate_perturbations(){
       Theta_p_spline[l].create(x_array, k_array, Theta_p[l], spline_name);
     }
   }
-
-  // Looping through all x and k to compute the value of Psi for each x and k
-  for (int ix = 0; ix < n_x; ++ix)
-  {
-    const double a = exp(x_array[ix]);
-
-    for (int ik = 0; ik < n_k; ++ik)
-    {
-      int index = ix + n_x*ik;
-      const double k = k_array[ik];
-
-      // Psi in tight coupling regime
-      if (Constants.neutrinos)
-      {
-        Psi[index] = -Phi[index] - 12.0*H0*H0/(c*c*k*k*a*a)*(Omega_gamma0*Thetas[2][index] \
-                                                           + Omega_nu0*Nu[2][index]);
-      }
-      else
-      {
-        Psi[index] = -Phi[index] - 12.0*H0*H0/(c*c*k*k*a*a)*Omega_gamma0*Thetas[2][index];
-      }
-    }
-  }
-
-  // Splining the result
-  Psi_spline.create(x_array, k_array, Psi);
 }
 
 //====================================================

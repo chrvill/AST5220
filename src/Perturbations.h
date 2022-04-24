@@ -14,14 +14,12 @@ using Vector   = std::vector<double>;
 using Vector2D = std::vector<Vector>;
 
 class Perturbations{
-//private:
-public:
+private:
 
     BackgroundCosmology *cosmo = nullptr;
     RecombinationHistory *rec  = nullptr;
 
     // The scales we integrate over
-    //const int n_k        = 100;
     const int n_k        = 100;
     const double k_min   = Constants.k_min;
     const double k_max   = Constants.k_max;
@@ -31,32 +29,23 @@ public:
     const double x_start = Constants.x_start;
     const double x_end   = Constants.x_end;
 
-    // Below is a full list of splines you probably need,
-    // but you only need to make the splines you will need
-
     // Splines of scalar perturbations quantities
     Spline2D delta_cdm_spline{"delta_cdm_spline"};
     Spline2D delta_b_spline{"delta_b_spline"};
     Spline2D v_cdm_spline{"v_cdm_spline"};
     Spline2D v_b_spline{"v_b_spline"};
     Spline2D Phi_spline{"Phi_spline"};
-    Spline2D Pi_spline{"Pi_spline"};
     Spline2D Psi_spline{"Psi_spline"};
 
     // Splines of source functions (ST for temperature; SE for polarization)
-    //Spline2D ST_spline{"ST_spline"};
-    //Spline2D SE_spline{"SE_spline"};
+    Spline2D ST_spline{"ST_spline"};
 
     // Splines of mulipole quantities
-    // NB: If you use there you have to allocate the container first
-    // e.g. Theta_spline = std::vector<Spline2D>(n_ell_theta); before using it
     std::vector<Spline2D> Theta_spline;
-    //std::vector<Spline2D> Theta_p_spline;
-    //std::vector<Spline2D> Nu_spline;
+    std::vector<Spline2D> Nu_spline;
+    std::vector<Spline2D> Theta_p_spline;
 
-    //Theta_spline = std::vector<Spline2D>(Constants.n_ell_theta);
-
-    //Theta_spline = std::vector<Spline2D>(n_ell_theta)
+    double f_nu;
 
     //==========================================================
     // [1] Tight coupling ODE system
@@ -129,7 +118,7 @@ public:
     double get_Theta_p(const double x, const double k, const int ell) const;
     double get_Nu(const double x, const double k, const int ell) const;
     double get_Source_T(const double x, const double k) const;
-    double get_Source_E(const double x, const double k) const;
+    //double get_Source_E(const double x, const double k) const;
 };
 
 #endif
