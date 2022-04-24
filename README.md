@@ -10,10 +10,8 @@ Input parameters:
   - h, OmegaB, OmegaCDM, OmegaK, Neff, TCMB for BackgroundCosmology
   - Yp (+ data from BackgroundCosmology object) for RecombinationHistory
 
-In the perturbation-code I have implemented the inclusion of neutrinos and polarization. All the results in the
-report are, however, produced with neutrinos and polarization turned off. I mostly included it in the code because
-it wasn't that much more work and makes the code more complete. But I don't feel like trying to explain
-neutrinos or polarization in the report, which is why I turned them off. 
+In the perturbation-code I have implemented the possibility of including neutrinos and polarization. All the results in the report are, however, produced with neutrinos and polarization turned off. I mostly included it in the code because it wasn't that much more work and makes the code more complete. But I don't feel like trying to explain
+neutrinos or polarization in the report, which is why I turned them off.
 
 Compiling:
 make
