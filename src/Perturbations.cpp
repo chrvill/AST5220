@@ -561,7 +561,7 @@ void Perturbations::compute_source_functions(){
       // in a 1D array for the 2D spline routine source(ix,ik) -> S_array[ix + nx * ik]
       const int index = ix + n_x * ik;
 
-      // Fetch all the things we need...
+      // Fetch background cosmology and recombination related stuff
       const double H0        = cosmo->H_of_x(0);
       const double Hp        = cosmo->Hp_of_x(x);
       const double dHpdx     = cosmo->dHpdx_of_x(x);
@@ -581,6 +581,7 @@ void Perturbations::compute_source_functions(){
 
       const double ck_Hp     = c*k/Hp;
 
+      // Fetch perturbation variables
       const double Theta0    = get_Theta(x, k, 0);
       const double Theta1    = get_Theta(x, k, 1);
       const double Theta2    = get_Theta(x, k, 2);
@@ -592,70 +593,20 @@ void Perturbations::compute_source_functions(){
       const double delta_b   = get_delta_b(x, k);
       const double delta_cdm = get_delta_cdm(x, k);
 
-
-      const double R = 4.0/3.0*OmegaR0/(OmegaB0*a);
-
-      /*
-      const double dPhidx    = Psi - ck_Hp*ck_Hp/3.0*Phi \
-                             + H0*H0/(2.0*Hp*Hp)*(OmegaCDM0/a*delta_cdm + OmegaB0/a*delta_b \
-                             + 4*OmegaR0/(a*a)*Theta0);
-
-      double dTheta2dx;
-      double ddTheta2ddx;
-      double dv_bdx;
-
-      // Different formulas for v_b and higher order photon multipoles
-      // during tight coupling
-      if ((abs(dtaudx) >= 10.0*ck_Hp) && (abs(dtaudx) >= 10) && (Xe >= 1))
-      {
-        const double ck_Hptau = ck_Hp/dtaudx;
-        const double dTheta0dx = -ck_Hp*Theta1 - dPhidx;
-
-        double q = (-((1.0 - R)*dtaudx + (1.0 + R)*ddtauddx)*(3*Theta1 + v_b) - ck_Hp*Psi \
-        + (1.0 - dHpdx/Hp)*ck_Hp*(-Theta0 + 2*Theta2) - ck_Hp*(dTheta0dx))/((1.0 + R)*dtaudx + dHpdx/Hp - 1.0);
-
-        dv_bdx = 1.0/(1.0 + R)*(-v_b - ck_Hp*Psi + R*(q + ck_Hp*(-Theta0 + 2*Theta2) - ck_Hp*Psi));
-
-        const double dTheta1dx = 1.0/3.0*(q - dv_bdx);
-
-        dTheta2dx = 20.0/45.0*ck_Hptau*(-dTheta1dx + dHpdx/Hp*Theta1 + ddtauddx/dtaudx*Theta1);
-
-        //ddTheta1ddx = Theta_spline[1].deriv_xx(x, k);
-
-        ddTheta2ddx = Theta_spline[2].deriv_xx(x, k);
-
-      }
-      else
-      {
-
-        dTheta2dx              = 2.0/5.0*ck_Hp*Theta1 - 3.0/5.0*ck_Hp*Theta3 + 9.0/10.0*dtaudx*Theta2;
-
-        const double dTheta1dx = ck_Hp/3.0*Theta0 - 2.0/3.0*ck_Hp*Theta2 + ck_Hp/3.0*Psi \
-                               + dtaudx*(Theta1 + 1.0/3.0*v_b);
-
-        const double dTheta3dx = 3.0/7.0*ck_Hp*Theta2 - 4.0/7.0*ck_Hp*Theta4 + dtaudx*Theta3;
-        dv_bdx                 = -v_b - ck_Hp*Psi + dtaudx*R*(3.0*Theta1 + v_b);
-
-        ddTheta2ddx = 2.0/5.0*ck_Hp*(dTheta1dx - dHpdx/Hp*Theta1) \
-                    - 3.0/5.0*ck_Hp*(dTheta3dx - dHpdx/Hp*Theta3) \
-                    + 9.0/10.0*(dTheta2dx*dtaudx + Theta2*ddtauddx);
-                    //+ 3.0/10.0*(dTheta2dx*dtaudx + Theta2*ddtauddx);
-      }
-
-      const double dPsidx    = -dPhidx - 12.0*H0*H0/(c*c*k*k*a*a)*OmegaR0*(dTheta2dx - 2*Theta2);
-      //const double dPsidx = Psi_spline.deriv_x(x, k);
-      */
-
+      // Derivatives of perturbation variables needed in the source function
       const double dPsidx      = Psi_spline.deriv_x(x, k);
       const double dPhidx      = Phi_spline.deriv_x(x, k);
       const double dTheta2dx   = Theta_spline[2].deriv_x(x, k);
       const double ddTheta2ddx = Theta_spline[2].deriv_xx(x, k);
       const double dv_bdx      = v_b_spline.deriv_x(x, k);
 
+      // Three terms entering the last term of the source function. Splitting the last term up
+      // so that it is somewhat easier to read.
       const double last_term_1   = g_tilde*Theta2*(dHpdx*dHpdx + Hp*ddHpddx);
       const double last_term_2   = 3*Hp*dHpdx*(dgdx*Theta2 + g_tilde*dTheta2dx);
       const double last_term_3   = Hp*Hp*(ddgddx*Theta2 + 2*dgdx*dTheta2dx + g_tilde*ddTheta2ddx);
 
+      // The four terms entering the source function
       const double first_term  = g_tilde*(Theta0 + Psi + 1.0/4.0*Theta2);
       const double second_term = exp(-tau)*(dPsidx - dPhidx);
       const double third_term  = -1.0/(c*k)*(dHpdx*g_tilde*v_b + Hp*dgdx*v_b + Hp*g_tilde*dv_bdx);
