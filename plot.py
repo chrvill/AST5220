@@ -412,3 +412,54 @@ pert1.plot([pert1.theta0, pert2.theta0, pert3.theta0], "pert_theta0", r"$\Theta_
 pert1.plot([pert1.theta1, pert2.theta1, pert3.theta1], "pert_theta1", r"$\Theta_1$",
            legends = [pert1.legend, pert2.legend, pert3.legend],
            colors = ["b", "r", "g", "b", "r", "g"])
+
+matter_power = np.loadtxt(txt_prefix + "matter_power.txt")
+k, P_k = np.transpose(matter_power)
+
+x = k*(Mpc/h)
+y = P_k*(h/Mpc)**3
+
+fig, ax = plt.subplots()
+ax.plot(x, y)
+ax.set_xscale("log")
+ax.set_yscale("log")
+fig.savefig("images/matter_power_spectrum.pdf")
+
+power_spectrum = np.loadtxt(txt_prefix + "cells.txt")
+l, cells = np.transpose(power_spectrum)
+
+fig, ax = plt.subplots()
+x = l
+y = cells
+
+ax.plot(x, y, "b-")
+ax.set_xscale("log")
+#ax.set_yscale("log")
+fig.savefig("images/cells.pdf")
+
+"""
+bessel = np.loadtxt(txt_prefix + "bessel_50.txt")
+x, j_ell = np.transpose(bessel)
+
+fig, ax = plt.subplots()
+ax.plot(x, j_ell, "b-")
+ax.set_xlim(0, 100)
+fig.savefig("images/bessel_50.pdf")
+"""
+
+S_func = np.loadtxt(txt_prefix + "source_func.txt")
+x, S = np.transpose(S_func)
+
+fig, ax = plt.subplots()
+ax.plot(x, S, "b-")
+ax.set_xlim(-8, 0)
+fig.savefig("images/source_func.pdf")
+
+"""
+theta_6 = np.loadtxt(txt_prefix + "theta_l.txt")
+k, theta = np.transpose(theta_6)
+
+fig, ax = plt.subplots()
+ax.plot(c*k/H0, theta, "b-")
+fig.savefig("images/theta_6.pdf")
+"""

@@ -2,6 +2,7 @@
 #include "BackgroundCosmology.h"
 #include "RecombinationHistory.h"
 #include "Perturbations.h"
+#include "PowerSpectrum.h"
 
 int main(int argc, char **argv){
   Utils::StartTiming("Everything");
@@ -21,6 +22,11 @@ int main(int argc, char **argv){
   double TCMB        = 2.7255;
 
   double Yp          = 0.245;
+
+  // Power-spectrum parameters
+  double A_s         = 2.1e-9;
+  double n_s         = 0.965;
+  double kpivot_mpc  = 0.05;
 
   //=========================================================================
   // Module I
@@ -87,6 +93,14 @@ int main(int argc, char **argv){
     pert.output(k, filename);
   }
 
+  //=========================================================================
+  // Module IV
+  //=========================================================================
+
+  PowerSpectrum power(&cosmo, &rec, &pert, A_s, n_s, kpivot_mpc);
+  power.solve();
+  power.output_CMB(txt_prefix + "cells.txt");
+  power.output_matter(txt_prefix + "matter_power.txt");
 
   Utils::EndTiming("Everything");
   return 0;
