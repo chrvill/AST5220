@@ -28,6 +28,41 @@ int main(int argc, char **argv){
   double n_s         = 0.965;
   double kpivot_mpc  = 0.05;
 
+  //=================================================
+  // Runs where I change the cosmological parameters
+  //=================================================
+  /*
+  // Changing OmegaLambda. Then OmegaB*h^2 = x_b and OmegaCDM*h^2 = x_cdm should be kept constant.
+  double x_b    = OmegaB*h*h;
+  double x_cdm  = OmegaCDM*h*h;
+  double x      = x_b + x_cdm;
+
+  double OmegaLambda = 0.9;
+  // h needs to change if OmegaB + OmegaCDM + OmegaLambda = 1, while OmegaB*h^2 etc. are constant.
+  h = std::sqrt(x/(1.0 - OmegaLambda));
+  // New values for OmegaB and OmegaCDM with OmegaLambda = 0.9
+  OmegaB = x_b/(h*h);
+  OmegaCDM = x_cdm/(h*h);
+  */
+  /*
+  // Changing OmegaM. Then want OmegaLambda*h^2 and OmegaB*h^2 to be constant.
+  double OmegaLambda = 0.683; // Fiducial value
+  double x_b      = OmegaB*h*h;
+  double x_lambda = OmegaLambda*h*h;
+
+  double OmegaM = 0.5;
+  h = std::sqrt(x_lambda/(1.0 - OmegaM));
+
+  OmegaB = x_b/(h*h);
+  OmegaCDM = OmegaM - OmegaB;
+  */
+  /*
+  // Changing OmegaB. Want OmegaM*h^2 to be constant (and thus OmegaLambda is also constant)
+  double x_m = (OmegaB + OmegaCDM)*h*h;
+  OmegaB = 0.1;
+  OmegaCDM = x_m/(h*h) - OmegaB;
+  */
+
   //=========================================================================
   // Module I
   //=========================================================================

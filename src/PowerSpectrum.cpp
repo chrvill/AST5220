@@ -27,14 +27,6 @@ void PowerSpectrum::solve(){
   //=========================================================================
   // TODO: Choose the range of k's and the resolution to compute Theta_ell(k)
   //=========================================================================
-  //Vector k_array(n_k);
-
-  /*
-  for (int ik = 0; ik < n_k; ++ik)
-  {
-    k_array[ik] = k_min + (k_max - k_min)*(1.0*ik*ik/((n_k - 1)*(n_k - 1)));
-  }
-  */
 
   Vector k_array = Utils::linspace(k_min, k_max, 2000);
 
@@ -54,14 +46,13 @@ void PowerSpectrum::solve(){
   // TODO: Integration to get Cell by solving dCell^f/dlogk = Delta(k) * f_ell(k)^2
   // Implement solve_for_cell
   //=========================================================================
-  const double n = 32.0;
+  const int n = 32;
   const double eta_0 = cosmo->eta_of_x(0);
   const double delta_k = 2*M_PI/(n*eta_0);
 
   const int n_k = std::floor((k_max - k_min)/delta_k);
 
   k_array = Utils::linspace(k_min, k_max, n_k);
-
 
   auto cell_TT = solve_for_cell(k_array, thetaT_ell_of_k_spline, thetaT_ell_of_k_spline);
   cell_TT_spline.create(ells, cell_TT, "Cell_TT_of_ell");
@@ -167,6 +158,10 @@ Vector2D PowerSpectrum::line_of_sight_integration_single(
         const double x = x_array[ix];
         const double eta = cosmo->eta_of_x(x);
 
+        // The trapezoidal rule for integration:
+        // int_a^b f(x) dx = [sum(x from a to b)(f(a) + 2*f(a + delta_x) + ... + 2*f(b - delta_x) + f(b))]*delta_x/2
+        // The multiplication by delta_x/2 is done at the end, after the loop over x, since the x-points
+        // are linearly spaced.
         if (ix == 0 || ix == (n_points_x - 1))
         {
           integral += 1.0*source_function(x, k)*j_ell_splines[i](k*(eta_0 - eta));
@@ -179,9 +174,9 @@ Vector2D PowerSpectrum::line_of_sight_integration_single(
 
       integral *= delta_x/2.0;
 
+      // Store the result for Source_ell(k) in result[ell][ik]
       result[i][ik] = integral;
     }
-    // Store the result for Source_ell(k) in results[ell][ik]
   }
 
   Utils::EndTiming("lineofsight");
@@ -229,15 +224,32 @@ Vector PowerSpectrum::solve_for_cell(
 
   Vector result(nells);
 
-  //============================================================================
-  // TODO: Integrate Cell = Int 4 * pi * P(k) f_ell g_ell dk/k
-  // or equivalently solve the ODE system dCell/dlogk = 4 * pi * P(k) * f_ell * g_ell
-  //============================================================================
-  std::function<double(const double, const double)> dCell_dk = [&](const double ell_index, const double k)
+  // The integrand in the expression for C_ell
+  auto dCell_dk = [&](const double ell_index, const double k)
   {
     return 4*M_PI*primordial_power_spectrum(k)*f_ell_spline[ell_index](k)*g_ell_spline[ell_index](k)/k;
   };
 
+  Vector ells_print = {10, 100, 1000};
+  Vector ells_indices = {7, 19, 42};
+
+  Vector k_print = Utils::linspace(k_min, k_max, 10000);
+
+  for (int i = 0; i < ells_print.size(); ++i)
+  {
+    const double l = ells_print[i];
+
+    std::string filename = "txtfiles/theta" + std::to_string(static_cast<int>(l)) + ".txt";
+    std::ofstream fp(filename);
+
+    for (int ik = 0; ik < k_print.size(); ++ik)
+    {
+      const double Theta_l = f_ell_spline[ells_indices[i]](k_print[ik]);
+
+      fp << k_print[ik] << "\t" << Theta_l << "\n";
+    }
+  }
+  // delta_k is needed in the trapezoidal rule, when multiplying by delta_k/2
   const double delta_k = (k_array[k_array.size() - 1] - k_array[0])/k_array.size();
 
   #pragma omp parallel for schedule(dynamic, 8)
@@ -272,7 +284,7 @@ Vector PowerSpectrum::solve_for_cell(
 //====================================================
 
 double PowerSpectrum::primordial_power_spectrum(const double k) const{
-  return A_s * pow( Constants.Mpc * k / kpivot_mpc , n_s - 1.0);
+  return A_s*pow(Constants.Mpc*k/kpivot_mpc, n_s - 1.0);
 }
 
 //====================================================

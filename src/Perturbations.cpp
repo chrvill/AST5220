@@ -602,9 +602,33 @@ void Perturbations::compute_source_functions(){
 
       // Three terms entering the last term of the source function. Splitting the last term up
       // so that it is somewhat easier to read.
-      const double last_term_1   = g_tilde*Theta2*(dHpdx*dHpdx + Hp*ddHpddx);
-      const double last_term_2   = 3*Hp*dHpdx*(dgdx*Theta2 + g_tilde*dTheta2dx);
-      const double last_term_3   = Hp*Hp*(ddgddx*Theta2 + 2*dgdx*dTheta2dx + g_tilde*ddTheta2ddx);
+
+      double Pi;
+      double dPidx;
+      double ddPiddx;
+
+      if (Constants.polarization)
+      {
+        const double dTheta_p2dx = Theta_p_spline[2].deriv_x(x, k);
+        const double dTheta_p0dx = Theta_p_spline[0].deriv_x(x, k);
+
+        const double ddTheta_p2ddx = Theta_p_spline[2].deriv_x(x, k);
+        const double ddTheta_p0ddx = Theta_p_spline[0].deriv_x(x, k);
+
+        Pi      = get_Pi(x, k);
+        dPidx   = dTheta2dx + dTheta_p0dx + dTheta_p2dx;
+        ddPiddx = ddTheta2ddx + ddTheta_p0ddx + ddTheta_p2ddx;
+      }
+      else
+      {
+        Pi = Theta2;
+        dPidx = dTheta2dx;
+        ddPiddx = ddTheta2ddx;
+      }
+
+      const double last_term_1 = g_tilde*Pi*(dHpdx*dHpdx + Hp*ddHpddx);
+      const double last_term_2 = 3*Hp*dHpdx*(dgdx*Pi + g_tilde*dPidx);
+      const double last_term_3 = Hp*Hp*(ddgddx*Pi + 2*dgdx*dPidx + g_tilde*ddPiddx);
 
       // The four terms entering the source function
       const double first_term  = g_tilde*(Theta0 + Psi + 1.0/4.0*Theta2);
@@ -988,6 +1012,14 @@ double Perturbations::get_Phi(const double x, const double k) const{
 
 double Perturbations::get_Psi(const double x, const double k) const{
   return Psi_spline(x,k);
+}
+
+double Perturbations::get_Pi(const double x, const double k) const{
+  const double Theta2   = get_Theta(x, k, 2);
+  const double Theta_p2 = get_Theta_p(x, k, 2);
+  const double Theta_p0 = get_Theta_p(x, k, 0);
+
+  return Theta2 + Theta_p2 + Theta_p0;
 }
 
 double Perturbations::get_Source_T(const double x, const double k) const{

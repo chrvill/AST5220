@@ -2,7 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy import optimize, interpolate
 
-txt_prefix = "txtfiles/"
+txt_prefix   = "txtfiles/"
+image_prefix = "images/"
 
 Mpc = 3.08567758e22 # Mpc in m
 Gyr = 1e9*3600*24*365 # Gyr in s
@@ -117,7 +118,7 @@ class Plotter:
             ax.set_ylim(ylims[0], ylims[1])
 
         if savefig:
-            fig.savefig("images/{}.pdf".format(imageName), bbox_inches = "tight")
+            fig.savefig(image_prefix + "{}.pdf".format(imageName), bbox_inches = "tight")
         else:
             return fig, ax
 
@@ -267,7 +268,7 @@ ax.set_ylabel(r"$d_L$ (Gpc)", fontsize = fontsize)
 ax.legend(fontsize = fontsize)
 ax.tick_params(axis = "both", labelsize = fontsize)
 
-fig.savefig("images/Supernova distances.pdf", bbox_inches = "tight")
+fig.savefig(image_prefix + "Supernova distances.pdf", bbox_inches = "tight")
 
 """
 
@@ -336,7 +337,7 @@ print("Recombination temperature: {:.2f} eV".format(recomb_temp*k_B/eV))
 
 fig, ax = plt.subplots()
 ax.plot(cosmo.t/Gyr, np.exp(cosmo.x)*cosmo.eta/(1e3*Mpc))
-fig.savefig("images/test.pdf")
+fig.savefig(image_prefix + "test.pdf")
 """
 
 class Perturbations(Plotter):
@@ -352,12 +353,7 @@ class Perturbations(Plotter):
 
         self.k = float(data_file.replace("perturbations_k", "").replace(".txt", ""))
         self.legend = r"$k = {}$/Mpc".format(self.k)
-        """
-        '{:g}'.format(float('{:.1g}'.format(i)))
-        """
 
-        #self.vlines_x = [self.rec.x_recomb, self.cosmo.x_m_r_eq]
-        #self.vline_text = ["Recombination", "Matter-rad. eq."]
         self.vlines_x = [self.rec.x_decoupling, self.cosmo.x_m_r_eq]
         self.vline_text = ["Decoupling", "Matter-rad. eq."]
 
@@ -376,7 +372,7 @@ ax.plot(x, theta0, "b-")
 #ax.plot(x, delta_cdm, "b-")
 #ax.plot(x, delta_b, "b--")
 #ax.set_yscale("log")
-fig.savefig("images/pert_k0.01.pdf", bbox_inches = "tight")
+fig.savefig(image_prefix + "pert_k0.01.pdf", bbox_inches = "tight")
 """
 
 pert1 = Perturbations("perturbations_k0.300000.txt", rec, cosmo)
@@ -413,53 +409,124 @@ pert1.plot([pert1.theta1, pert2.theta1, pert3.theta1], "pert_theta1", r"$\Theta_
            legends = [pert1.legend, pert2.legend, pert3.legend],
            colors = ["b", "r", "g", "b", "r", "g"])
 
+def plot_power_spectra(filenames, labels, colors, outputname, xlabel = r"Multipole $\ell$", \
+                       ylabel = r"$\ell \left(\ell + 1\right) C_\ell/2\pi$ ($\mu$K)$^2$"):
+    fig, ax = plt.subplots()
+    for i in range(len(filenames)):
+        power_spect = np.loadtxt(txt_prefix + filenames[i])
+        ell, Cell = np.transpose(power_spect)
+
+        ax.plot(ell, Cell, colors[i], label = labels[i])
+
+    ax.set_xscale("log")
+    #ax.set_xlabel(r"Multipole $\ell$")
+    #ax.set_ylabel(r"$\ell \left(\ell + 1\right) C_\ell/2\pi$ ($\mu$K)$^2$")
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.legend()
+    fig.savefig(outputname, bbox_inches = "tight")
+
+
+"""
+Plotting matter power spectrum
+"""
+
 matter_power = np.loadtxt(txt_prefix + "matter_power.txt")
 k, P_k = np.transpose(matter_power)
 
 x = k*(Mpc/h)
 y = P_k*(h/Mpc)**3
 
+matter_power_obs = np.loadtxt(txt_prefix + "matter_power_spect_data.txt", skiprows = 0)
+k_obs, P_k_obs, errors = np.transpose(matter_power_obs)
+
 fig, ax = plt.subplots()
-ax.plot(x, y)
+ax.plot(x, y, "r-", label = "Theory prediction")
+
+ax.errorbar(k_obs, P_k_obs, errors, fmt = "o", label = "SDSS DR7 LRG",
+            color = "k", capsize = 2, markersize = 2)
+
 ax.set_xscale("log")
 ax.set_yscale("log")
-fig.savefig("images/matter_power_spectrum.pdf")
+ax.legend()
+ax.set_xlabel(r"$k$ ($h$/Mpc)")
+ax.set_ylabel(r"$P(k)$ (Mpc/$h$)$^3$")
+fig.savefig(image_prefix + "matter_power_spectrum.pdf", bbox_inches = "tight")
+
+"""
+Plotting CMB power spectrum
+"""
 
 power_spectrum = np.loadtxt(txt_prefix + "cells.txt")
-l, cells = np.transpose(power_spectrum)
+l, C_ells = np.transpose(power_spectrum)
 
 fig, ax = plt.subplots()
 x = l
-y = cells
+y = C_ells
 
-ax.plot(x, y, "b-")
+cmb_data = np.loadtxt(txt_prefix + "cmb_data.txt", skiprows = 0)
+x_obs, y_obs = cmb_data[:, 0], cmb_data[:, 1]
+errors = np.array([i[::-1] for i in cmb_data[:, 2:]]).T
+
+ax.plot(x, y, "r-", label = "Theory prediction")
+ax.errorbar(x_obs, y_obs, errors, fmt = "o", label = "Planck 2018",
+            color = "k", capsize = 2, markersize = 2)
+
 ax.set_xscale("log")
-#ax.set_yscale("log")
-fig.savefig("images/cells.pdf")
+ax.set_xlabel(r"Multipole $\ell$")
+ax.set_ylabel(r"$\ell \left(\ell + 1\right) C_\ell/2\pi$ ($\mu$K)$^2$")
+ax.legend()
+fig.savefig(image_prefix + "cells.pdf", bbox_inches = "tight")
 
 """
-bessel = np.loadtxt(txt_prefix + "bessel_50.txt")
-x, j_ell = np.transpose(bessel)
-
-fig, ax = plt.subplots()
-ax.plot(x, j_ell, "b-")
-ax.set_xlim(0, 100)
-fig.savefig("images/bessel_50.pdf")
+Plotting power spectra for varying cosmological parameters
 """
 
-S_func = np.loadtxt(txt_prefix + "source_func.txt")
-x, S = np.transpose(S_func)
+filenames = ["cells.txt", "cells_lambda0.9.txt", "cells_m_0.5.txt", "cells_b_0.1.txt"]
+labels = ["Fiducial model", r"$\Omega_{\Lambda0} = 0.9$",
+         r"$\Omega_{\mathrm{M}0} = 0.5$", r"$\Omega_{\mathrm{B}0} = 0.1$"]
+colors = ["b-", "r-", "g--", "m:"]
+outputname = image_prefix + "cells_varying_params.pdf"
 
-fig, ax = plt.subplots()
-ax.plot(x, S, "b-")
-ax.set_xlim(-8, 0)
-fig.savefig("images/source_func.pdf")
+plot_power_spectra(filenames, labels, colors, outputname)
 
 """
-theta_6 = np.loadtxt(txt_prefix + "theta_l.txt")
-k, theta = np.transpose(theta_6)
-
-fig, ax = plt.subplots()
-ax.plot(c*k/H0, theta, "b-")
-fig.savefig("images/theta_6.pdf")
+Plotting power spectra when only including the first, second, third or fourth term
+in the source function
 """
+
+filenames = ["cells_first_term.txt", "cells_second_term.txt",
+             "cells_third_term.txt", "cells_fourth_term.txt"]
+
+labels = ["1st term", "2nd term", "3rd term", "4th term"]
+colors = ["b-", "r-", "g--", "m:"]
+outputname = image_prefix + "cells_source_terms.pdf"
+
+plot_power_spectra(filenames, labels, colors, outputname)
+
+ells = [10, 100, 1000]
+filenames = [txt_prefix + "theta{}.txt".format(i) for i in ells]
+colors = ["b-", "g-", "r-"]
+fig1, ax1 = plt.subplots()
+fig2, ax2 = plt.subplots()
+
+for i in range(len(filenames)):
+    theta_l = np.loadtxt(filenames[i])
+    k, theta = np.transpose(theta_l)
+
+    ax1.plot(c*k/H0, theta, colors[i], label = r"$\ell = {}$".format(ells[i]))
+    ax2.plot(c*k/H0, theta**2/(c*k)*H0, colors[i], label = r"$\ell = {}$".format(ells[i]))
+
+ax1.plot(c*k/H0, theta, "b-")
+ax1.legend()
+ax1.set_xlabel(r"$ck/H_0$")
+ax1.set_ylabel(r"$\Theta_l$")
+fig1.savefig(image_prefix + "theta_l.pdf", bbox_inches = "tight")
+
+ax2.set_xlim(0, 600)
+ax2.legend()
+ax2.set_xlabel(r"$ck/H_0$")
+ax2.set_ylabel(r"$\frac{\Theta_l^2}{k} \cdot \left(\frac{H_0}{c}\right)$")
+ax2.set_yscale("log")
+ax2.set_ylim(1e-10, 1e-4)
+fig2.savefig(image_prefix + "C_ell_integrand.pdf", bbox_inches = "tight")
