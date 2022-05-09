@@ -446,6 +446,17 @@ ax.plot(x, y, "r-", label = "Theory prediction")
 ax.errorbar(k_obs, P_k_obs, errors, fmt = "o", label = "SDSS DR7 LRG",
             color = "k", capsize = 2, markersize = 2)
 
+# x and Hp at matter-radiation equality
+x_eq = cosmo.x_m_r_eq
+Hp_eq = np.interp(x_eq, cosmo.x, cosmo.Hp)
+
+# The equality scale (in h/Mpc)
+k_eq = Hp_eq/c*(Mpc/h)
+
+y_range = [np.min(y), np.max(y)]
+
+ax.plot([k_eq, k_eq], y_range, "k--", alpha = 0.8, label = r"$k_\mathrm{eq}$")
+
 ax.set_xscale("log")
 ax.set_yscale("log")
 ax.legend()
@@ -517,7 +528,6 @@ for i in range(len(filenames)):
     ax1.plot(c*k/H0, theta, colors[i], label = r"$\ell = {}$".format(ells[i]))
     ax2.plot(c*k/H0, theta**2/(c*k)*H0, colors[i], label = r"$\ell = {}$".format(ells[i]))
 
-ax1.plot(c*k/H0, theta, "b-")
 ax1.legend()
 ax1.set_xlabel(r"$ck/H_0$")
 ax1.set_ylabel(r"$\Theta_l$")
