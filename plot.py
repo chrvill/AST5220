@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import optimize, interpolate
+import healpy as hp
 
 txt_prefix   = "txtfiles/"
 image_prefix = "images/"
@@ -437,11 +438,13 @@ k, P_k = np.transpose(matter_power)
 x = k*(Mpc/h)
 y = P_k*(h/Mpc)**3
 
-matter_power_obs = np.loadtxt(txt_prefix + "matter_power_spect_data.txt", skiprows = 0)
-k_obs, P_k_obs, errors = np.transpose(matter_power_obs)
 
 fig, ax = plt.subplots()
 ax.plot(x, y, "r-", label = "Theory prediction")
+
+# Reading in and plotting data of matter power spectrum from observations
+matter_power_obs = np.loadtxt(txt_prefix + "matter_power_spect_data.txt", skiprows = 0)
+k_obs, P_k_obs, errors = np.transpose(matter_power_obs)
 
 ax.errorbar(k_obs, P_k_obs, errors, fmt = "o", label = "SDSS DR7 LRG",
             color = "k", capsize = 2, markersize = 2)
@@ -469,17 +472,17 @@ Plotting CMB power spectrum
 """
 
 power_spectrum = np.loadtxt(txt_prefix + "cells.txt")
-l, C_ells = np.transpose(power_spectrum)
+ells, C_ells = np.transpose(power_spectrum)
 
 fig, ax = plt.subplots()
-x = l
-y = C_ells
 
+ax.plot(ells, C_ells, "r-", label = "Theory prediction")
+
+#  Reading in and plotting the data from CMB observations
 cmb_data = np.loadtxt(txt_prefix + "cmb_data.txt", skiprows = 0)
 x_obs, y_obs = cmb_data[:, 0], cmb_data[:, 1]
 errors = np.array([i[::-1] for i in cmb_data[:, 2:]]).T
 
-ax.plot(x, y, "r-", label = "Theory prediction")
 ax.errorbar(x_obs, y_obs, errors, fmt = "o", label = "Planck 2018",
             color = "k", capsize = 2, markersize = 2)
 
@@ -488,6 +491,38 @@ ax.set_xlabel(r"Multipole $\ell$")
 ax.set_ylabel(r"$\ell \left(\ell + 1\right) C_\ell/2\pi$ ($\mu$K)$^2$")
 ax.legend()
 fig.savefig(image_prefix + "cells.pdf", bbox_inches = "tight")
+
+np.random.seed(2492938)
+
+def plot_cmb_map(C_ells):
+    """
+    Plots the CMB map with the Mollweide projection, given an array of C_ells
+    """
+    nside = 128
+    dpi = 500
+
+    from matplotlib.colors import ListedColormap
+    import numpy as np
+    cmap = ListedColormap(np.loadtxt(txt_prefix + "Planck_Parchment_RGB.txt")/255.)
+    cmap.set_bad("gray")
+    cmap.set_under("white")
+
+    fig, ax = plt.subplots()
+    m = hp.sphtfunc.synfast(C_ells, nside)
+    hp.mollview(m, fig, title = "", cbar = False, cmap = cmap, remove_dip = True)
+
+    ax.axis("off")
+    fig.savefig(image_prefix + "cmb_map.pdf", bbox_inches = "tight", dpi = dpi)
+
+# Need to remove the multiplying factor that is used when plotting the power spectrum
+C_ells /= ells*(ells + 1)/(2*np.pi)
+
+# Adding two more values in the beginning of C_ells_full, corresponding to monopole and dipole
+# We don't need them, we remove them in hp.mollview, but healpy expects them to be in the C_ells array (I think?)
+C_ells_full = np.zeros(len(C_ells) + 2)
+C_ells_full[2:] = C_ells
+
+plot_cmb_map(C_ells_full)
 
 """
 Plotting power spectra for varying cosmological parameters
@@ -509,7 +544,9 @@ in the source function
 filenames = ["cells_first_term.txt", "cells_second_term.txt",
              "cells_third_term.txt", "cells_fourth_term.txt"]
 
-labels = ["1st term", "2nd term", "3rd term", "4th term"]
+#labels = ["1st term", "2nd term", "3rd term", "4th term"]
+
+labels = ["SW", "ISW", "Doppler", "Fourth term"]
 colors = ["b-", "r-", "g--", "m:"]
 outputname = image_prefix + "cells_source_terms.pdf"
 
@@ -531,12 +568,15 @@ for i in range(len(filenames)):
 ax1.legend()
 ax1.set_xlabel(r"$ck/H_0$")
 ax1.set_ylabel(r"$\Theta_l$")
+ax1.set_xscale("log")
 fig1.savefig(image_prefix + "theta_l.pdf", bbox_inches = "tight")
 
-ax2.set_xlim(0, 600)
 ax2.legend()
 ax2.set_xlabel(r"$ck/H_0$")
 ax2.set_ylabel(r"$\frac{\Theta_l^2}{k} \cdot \left(\frac{H_0}{c}\right)$")
 ax2.set_yscale("log")
-ax2.set_ylim(1e-10, 1e-4)
+ax2.set_ylim(1e-10, 2e-4)
+ax2.set_xscale("log")
 fig2.savefig(image_prefix + "C_ell_integrand.pdf", bbox_inches = "tight")
+
+print(cosmo.eta[-1]/Mpc)
