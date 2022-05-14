@@ -31,8 +31,8 @@ int main(int argc, char **argv){
   //=================================================
   // Runs where I change the cosmological parameters
   //=================================================
-  // Changing OmegaLambda. Then OmegaB*h^2 = x_b and OmegaCDM*h^2 = x_cdm should be kept constant.
   /*
+  // Changing OmegaLambda. Then OmegaB*h^2 = x_b and OmegaCDM*h^2 = x_cdm should be kept constant.
   double x_b    = OmegaB*h*h;
   double x_cdm  = OmegaCDM*h*h;
   double x      = x_b + x_cdm;
@@ -44,7 +44,6 @@ int main(int argc, char **argv){
   OmegaB = x_b/(h*h);
   OmegaCDM = x_cdm/(h*h);
   */
-
   /*
   // Changing OmegaM. Then want OmegaLambda*h^2 and OmegaB*h^2 to be constant.
   double OmegaLambda = 0.683; // Fiducial value
@@ -58,10 +57,10 @@ int main(int argc, char **argv){
   OmegaCDM = OmegaM - OmegaB;
   */
   /*
-  // Changing OmegaB. Want OmegaM*h^2 to be constant (and thus OmegaLambda is also constant)
-  double x_m = (OmegaB + OmegaCDM)*h*h;
+  // Changing OmegaB. Want OmegaM to be constant (and thus OmegaLambda is also constant)
+  double OmegaM = OmegaB + OmegaCDM;
   OmegaB = 0.1;
-  OmegaCDM = x_m/(h*h) - OmegaB;
+  OmegaCDM = OmegaM - OmegaB;
   */
 
   //=========================================================================

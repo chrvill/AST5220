@@ -67,6 +67,7 @@ void PowerSpectrum::generate_bessel_function_splines(){
 
   Vector x = Utils::linspace(x_min, x_max, n_points);
 
+  #pragma omp parallel for schedule(dynamic, 8)
   for(size_t i = 0; i < ells.size(); i++){
     const int ell = ells[i];
 
@@ -194,7 +195,7 @@ Vector PowerSpectrum::solve_for_cell(
   // Theta_ell to file. Corresponds to ell = 10, 100 and 1000
   Vector ells_indices = {7, 19, 42};
 
-  Vector k_print = Utils::linspace(k_min, k_max, 10000);
+  Vector k_write = Utils::linspace(k_min, k_max, 20000);
 
   // Writing Theta_ell to file for these values of ell
   for (int i = 0; i < ells_indices.size(); ++i)
@@ -204,11 +205,11 @@ Vector PowerSpectrum::solve_for_cell(
     std::string filename = "txtfiles/theta" + std::to_string(static_cast<int>(ell)) + ".txt";
     std::ofstream fp(filename);
 
-    for (int ik = 0; ik < k_print.size(); ++ik)
+    for (int ik = 0; ik < k_write.size(); ++ik)
     {
-      const double Theta_ell = f_ell_spline[ells_indices[i]](k_print[ik]);
+      const double Theta_ell = f_ell_spline[ells_indices[i]](k_write[ik]);
 
-      fp << k_print[ik] << "\t" << Theta_ell << "\n";
+      fp << k_write[ik] << "\t" << Theta_ell << "\n";
     }
   }
   // delta_k is needed in the trapezoidal rule, when multiplying by delta_k/2
@@ -256,9 +257,9 @@ double PowerSpectrum::get_matter_power_spectrum(const double x, const double k) 
   const double Omega_M0 = cosmo->get_OmegaM(0);
   const double a        = exp(x);
   const double c        = Constants.c;
-  const double Psi = pert->get_Psi(x, k);
+  const double Phi = pert->get_Phi(x, k);
 
-  const double Delta_M = pow(c*k/H0, 2)*Psi*2.0/3.0*a/Omega_M0;
+  const double Delta_M = pow(c*k/H0, 2)*Phi*2.0/3.0*a/Omega_M0;
 
   return abs(Delta_M)*abs(Delta_M)*primordial_power_spectrum(k)*2*M_PI*M_PI/(k*k*k);
 }
@@ -281,12 +282,9 @@ void PowerSpectrum::output_CMB(std::string filename) const{
   auto ellvalues = Utils::linspace(2, ellmax, ellmax-1);
 
   auto print_data = [&] (const double ell) {
-    double normfactor  = (ell * (ell+1)) / (2.0 * M_PI) * pow(1e6 * cosmo->get_TCMB(), 2);
-    double normfactorN = (ell * (ell+1)) / (2.0 * M_PI)
-      * pow(1e6 * cosmo->get_TCMB() *  pow(4.0/11.0, 1.0/3.0), 2);
-    double normfactorL = (ell * (ell+1)) * (ell * (ell+1)) / (2.0 * M_PI);
+    double normfactor  = (ell*(ell + 1))/(2.0 * M_PI)*pow(1e6 * cosmo->get_TCMB(), 2);
     fp << ell                                 << " ";
-    fp << cell_TT_spline( ell ) * normfactor  << " ";
+    fp << cell_TT_spline(ell)*normfactor << " ";
     fp << "\n";
   };
   std::for_each(ellvalues.begin(), ellvalues.end(), print_data);
