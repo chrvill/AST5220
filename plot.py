@@ -99,8 +99,8 @@ class Plotter:
             else:
                 ax.plot(self.x, quantities, colors[0])
 
-        if len(legends) > 0:
-            ax.legend(fontsize = fontsize)
+        #if len(legends) > 0:
+        ax.legend(fontsize = fontsize)
 
         ax.set_xlabel(xlabel, fontsize = fontsize)
         ax.set_ylabel(ylabel, fontsize = fontsize)
@@ -120,6 +120,7 @@ class Plotter:
 
         if savefig:
             fig.savefig(image_prefix + "{}.pdf".format(imageName), bbox_inches = "tight")
+            plt.close()
         else:
             return fig, ax
 
@@ -210,7 +211,6 @@ def printEvents(event_names, z, x, t):
 
 cosmo = BackgroundCosmology("cosmology.txt")
 
-"""
 # Plotting the omegas against x
 cosmo.plot([cosmo.Omega_r, cosmo.Omega_m, cosmo.OmegaLambda], "omegas", r"$\Omega_i(x)$",
             legends = [r"$\Omega_r$", r"$\Omega_m$", r"$\Omega_\Lambda$"],
@@ -240,19 +240,18 @@ cosmo.plot(cosmo.eta*cosmo.Hp/c, "eta(x)Hp(x)", r"$\frac{\eta(x)\mathcal{H}(x)}{
 
 # Plotting t(x)
 cosmo.plot(cosmo.t/Gyr, "t(x)", r"$t(x)$ (Gyr)", logscale = True, xlims = [-15, 5], ylims = [1e-10, 5e2])
-"""
 
 """
 Reading in and plotting the supernova-data
 """
-"""
-sn_data = np.loadtxt("sn_data.txt", skiprows = 1)
+
+sn_data = np.loadtxt(txt_prefix + "sn_data.txt", skiprows = 1)
 
 # Redshifts and lum. distances from data
 z_obs, d_L_obs, error = np.transpose(sn_data)
 
 # Computed lum. distances for the array x_lum containing x-values
-x_lum, d_L = np.transpose(np.loadtxt("lum_dist.txt"))
+x_lum, d_L = np.transpose(np.loadtxt(txt_prefix + "lum_dist.txt"))
 
 # Redshifts for the given x-values
 z = np.exp(-x_lum) - 1
@@ -271,7 +270,16 @@ ax.tick_params(axis = "both", labelsize = fontsize)
 
 fig.savefig(image_prefix + "Supernova distances.pdf", bbox_inches = "tight")
 
-"""
+fig, ax = plt.subplots()
+ax.plot(z, d_L/(1e3*Mpc), "b-", label = r"Computed $d_L(z)$")
+ax.errorbar(z_obs, d_L_obs, error, fmt = "o", label = r"Observed $d_L(z)$", color = "r", capsize = 5, markersize = 5)
+
+ax.set_xlabel(r"$z$", fontsize = fontsize)
+ax.set_ylabel(r"$d_L$ (Gpc)", fontsize = fontsize)
+ax.legend(fontsize = fontsize)
+ax.tick_params(axis = "both", labelsize = fontsize)
+
+fig.savefig(image_prefix + "Supernova distances_non_log.pdf", bbox_inches = "tight")
 
 rec = Recombination("recombination.txt", cosmo)
 rec_no_He = Recombination("recombination_without_He.txt", cosmo)
@@ -286,18 +294,14 @@ ax.set_yscale("log")
 
 fig.savefig("images/Xe(x).pdf", bbox_inches = "tight")
 
-"""
 rec.plot([rec.tau, -rec.dtaudx, rec.ddtauddx], "tau(x)", r"$\tau$", logscale = True,
           legends = [r"$\tau(x)$", r"$-\tau'(x)$", r"$\tau''(x)$"], xlims = [-12, 0], ylims = [1e-8, 1e7])
-"""
 
 rec.plot([rec.g, rec.dgdx/10, rec.ddgddx/200], "g(x)", r"$\tilde{g}$", legends = [r"$\tilde{g}$", r"$\tilde{g}'$"
                                       , r"$\tilde{g}''$"], xlims = [-7.5, -6.2], dashed = [False, True, True])
 
-"""
 rec.plot([rec.g, rec.dgdx/10, rec.ddgddx/200], "g(x)_zoomed_out", r"$\tilde{g}$", legends = [r"$\tilde{g}$", r"$\tilde{g}'$"
                                       , r"$\tilde{g}''$"], xlims = [-12, 0], dashed = [False, True, True])
-"""
 
 # Defining arrays containing the names, redshifts etc for the different events of interest
 event_names = ["Matter-rad. eq.", "Matter-Lambda eq.", "Acc. begin", "Decoupling", "Recombination"]
@@ -326,7 +330,7 @@ def saha_fixed_Xe(x):
 
     return C*np.exp(x)**(3/2)*np.exp(-b*np.exp(x)) - LHS
 
-"""
+
 # Finds solution to Saha eq. for Xe = 0.5
 root = optimize.root_scalar(saha_fixed_Xe, x0 = -7.2, x1 = -7.25).root
 print("Saha approx.: Recombination at {:.2f}".format(root))
@@ -339,7 +343,6 @@ print("Recombination temperature: {:.2f} eV".format(recomb_temp*k_B/eV))
 fig, ax = plt.subplots()
 ax.plot(cosmo.t/Gyr, np.exp(cosmo.x)*cosmo.eta/(1e3*Mpc))
 fig.savefig(image_prefix + "test.pdf")
-"""
 
 class Perturbations(Plotter):
     def __init__(self, data_file, rec, cosmo):
@@ -420,11 +423,10 @@ def plot_power_spectra(filenames, labels, colors, outputname, xlabel = r"Multipo
         ax.plot(ell, Cell, colors[i], label = labels[i])
 
     ax.set_xscale("log")
-    #ax.set_xlabel(r"Multipole $\ell$")
-    #ax.set_ylabel(r"$\ell \left(\ell + 1\right) C_\ell/2\pi$ ($\mu$K)$^2$")
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    ax.legend()
+    ax.set_xlabel(xlabel, fontsize = fontsize)
+    ax.set_ylabel(ylabel, fontsize = fontsize)
+    ax.legend(fontsize = fontsize)
+    ax.tick_params(axis = "both", labelsize = fontsize)
     fig.savefig(outputname, bbox_inches = "tight")
 
 
@@ -462,9 +464,10 @@ ax.plot([k_eq, k_eq], y_range, "k--", alpha = 0.8, label = r"$k_\mathrm{eq}$")
 
 ax.set_xscale("log")
 ax.set_yscale("log")
-ax.legend()
-ax.set_xlabel(r"$k$ ($h$/Mpc)")
-ax.set_ylabel(r"$P(k)$ (Mpc/$h$)$^3$")
+ax.legend(fontsize = fontsize)
+ax.set_xlabel(r"$k$ ($h$/Mpc)", fontsize = fontsize)
+ax.set_ylabel(r"$P(k)$ (Mpc/$h$)$^3$", fontsize = fontsize)
+ax.tick_params(axis = "both", labelsize = fontsize)
 fig.savefig(image_prefix + "matter_power_spectrum.pdf", bbox_inches = "tight")
 
 """
@@ -487,9 +490,10 @@ ax.errorbar(x_obs, y_obs, errors, fmt = "o", label = "Planck 2018",
             color = "k", capsize = 2, markersize = 2)
 
 ax.set_xscale("log")
-ax.set_xlabel(r"Multipole $\ell$")
-ax.set_ylabel(r"$\ell \left(\ell + 1\right) C_\ell/2\pi$ ($\mu$K)$^2$")
-ax.legend()
+ax.set_xlabel(r"Multipole $\ell$", fontsize = fontsize)
+ax.set_ylabel(r"$\ell \left(\ell + 1\right) C_\ell/2\pi$ ($\mu$K)$^2$", fontsize = fontsize)
+ax.legend(fontsize = fontsize)
+ax.tick_params(axis = "both", labelsize = fontsize)
 fig.savefig(image_prefix + "cells.pdf", bbox_inches = "tight")
 
 np.random.seed(2492938)
@@ -565,18 +569,20 @@ for i in range(len(filenames)):
     ax1.plot(c*k/H0, theta, colors[i], label = r"$\ell = {}$".format(ells[i]))
     ax2.plot(c*k/H0, theta**2/(c*k)*H0, colors[i], label = r"$\ell = {}$".format(ells[i]))
 
-ax1.legend()
-ax1.set_xlabel(r"$ck/H_0$")
-ax1.set_ylabel(r"$\Theta_l$")
+ax1.legend(fontsize = fontsize)
+ax1.set_xlabel(r"$ck/H_0$", fontsize = fontsize)
+ax1.set_ylabel(r"$\Theta_l$", fontsize = fontsize)
+ax1.tick_params(axis = "both", labelsize = fontsize)
 ax1.set_xscale("log")
 fig1.savefig(image_prefix + "theta_l.pdf", bbox_inches = "tight")
 
-ax2.legend()
-ax2.set_xlabel(r"$ck/H_0$")
-ax2.set_ylabel(r"$\frac{\Theta_l^2}{k} \cdot \left(\frac{H_0}{c}\right)$")
+ax2.legend(fontsize = fontsize)
+ax2.set_xlabel(r"$ck/H_0$", fontsize = fontsize)
+ax2.set_ylabel(r"$\frac{\Theta_l^2}{k} \cdot \left(\frac{H_0}{c}\right)$", fontsize = fontsize)
 ax2.set_yscale("log")
 ax2.set_ylim(1e-10, 2e-4)
 ax2.set_xscale("log")
+ax2.tick_params(axis = "both", labelsize = fontsize)
 fig2.savefig(image_prefix + "C_ell_integrand.pdf", bbox_inches = "tight")
 
 print(cosmo.eta[-1]/Mpc)
