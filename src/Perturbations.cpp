@@ -44,16 +44,8 @@ void Perturbations::integrate_perturbations(){
 
   Vector x_array = Utils::linspace(x_start, x_end, n_x);
 
-  // Generating logarithmically spaced k-values by first generating
-  // linearly spaced exponents
-  Vector exponents = Utils::linspace(log(k_min), log(k_max), n_k);
-
-  Vector k_array(n_k);
-
-  for (int i = 0; i < n_k; ++i)
-  {
-    k_array[i] = exp(exponents[i]);
-  }
+  // Generating logarithmically spaced k-values
+  Vector k_array = exp(Utils::linspace(log(k_min), log(k_max), n_k));
 
   // Initializing the vectors containing the values for all the perturbation variables
   Vector delta_cdm(n_x*n_k);

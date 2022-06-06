@@ -295,14 +295,7 @@ void PowerSpectrum::output_matter(std::string filename) const{
 
   const double nk = 1000;
 
-  Vector exponents = Utils::linspace(log(k_min), log(k_max), nk);
-
-  Vector k_array(nk);
-
-  for (int i = 0; i < nk; ++i)
-  {
-    k_array[i] = exp(exponents[i]);
-  }
+  Vector k_array = exp(Utils::linspace(log(k_min), log(k_max), nk));
 
   auto print_data = [&](const double k){
     fp << k << " ";
