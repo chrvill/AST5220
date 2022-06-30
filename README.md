@@ -25,4 +25,4 @@ Running C++ computations:
 Plotting results:
 python3 plot.py
 
-![alt text](https://github.com/chrvill/AST5220/blob/main/images/cmb_map.pdf?raw=true)
+![plot](.images/cmb_map.pdf)
