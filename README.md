@@ -24,5 +24,3 @@ Running C++ computations:
 
 Plotting results:
 python3 plot.py
-
-![plot](./images/cmb_map.pdf)
