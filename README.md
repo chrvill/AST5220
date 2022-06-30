@@ -16,8 +16,6 @@ In the perturbation-code I have implemented the possibility of including neutrin
 neutrinos or polarization in the report, which is why I turned them off. The C++ computations run in about 20-30 seconds
 on my laptop.
 
-(It said on the website to include a data file including {ell, C_ell}. This is the file cells.txt in the txtfiles-directory.)
-
 Compiling:
 make
 
@@ -26,3 +24,5 @@ Running C++ computations:
 
 Plotting results:
 python3 plot.py
+
+![alt text](https://github.com/chrvill/AST5220/blob/main/images/cmb_map.pdf?raw=true)
